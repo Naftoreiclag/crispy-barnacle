@@ -1,0 +1,12 @@
+.codelite/*
+.clang/*
+workspace.tags
+
+*.mk
+Makefile
+
+src/Main.txt
+
+bin/*
+
+depend/*
