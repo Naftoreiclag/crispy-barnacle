@@ -39,13 +39,13 @@ struct Waveform {
 };
 
 // Loads a waveform into memory through a filename
-uint32_t loadWaveform(std::string filename, Waveform& returnVal);
+int32_t loadWaveform(std::string filename, Waveform& returnVal);
 // Delete a waveform from memory
 void freeWaveform(Waveform& wavefrom);
 
 // Internal
-uint32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal);
-uint32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal);
+int32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal);
+int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal);
 
 // Open a file just enough to tell what type it is
 Waveform::InputFileFormat determineWaveformType(std::string filename);

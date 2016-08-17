@@ -44,19 +44,32 @@ Waveform::InputFileFormat determineWaveformType(std::string inputFilename) {
 }
 
 // Loads a waveform into memory through a filename
-uint32_t loadWaveform(std::string filename, Waveform& returnVal) {
+int32_t loadWaveform(std::string filename, Waveform& returnVal) {
     std::cout << "Loading waveform from " << filename << std::endl;
     std::cout << "Detecting file format..." << std::endl;
     Waveform::InputFileFormat format = determineWaveformType(filename);
     
+    int32_t errorVal;
+    
     switch(format) {
-        case Waveform::OGG_VORBIS: return loadWaveformAsOggVorbis(filename, returnVal);
-        case Waveform::FLAC: return loadWaveformAsFLAC(filename, returnVal);
+        case Waveform::OGG_VORBIS: errorVal = loadWaveformAsOggVorbis(filename, returnVal); break;
+        case Waveform::FLAC: errorVal = loadWaveformAsFLAC(filename, returnVal); break;
         default: return -1;
     }
+    if(errorVal) {
+        std::cerr << "Error while decoding!" << std::endl;
+    } else {
+        std::cout << "Done decoding ===" << std::endl;
+        std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
+        std::cout << "Sample size: " << returnVal.mSampleSize << " bytes" << std::endl;
+        std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
+    }
+    std::cout << std::endl;
+    
+    return errorVal;
 }
 
-uint32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal) {
+int32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal) {
     std::cout << "Reading file as ogg-vorbis..." << std::endl;
     
     returnVal.mInputFileFormat = Waveform::OGG_VORBIS;
@@ -94,10 +107,6 @@ uint32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal) {
     returnVal.mOriginalSamples = new uint8_t[returnVal.mNumSamples * returnVal.mSampleSize];
     
     returnVal.mRunningTotal = 0;
-
-    std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
-    std::cout << "Sample size: " << returnVal.mSampleSize << " bytes" << std::endl;
-    std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
     
     while(true) {
         int ovRet = ov_read(&inputVorbisFile, inputBuffer, sizeof(inputBuffer), bigEndian, returnVal.mSampleSize, signage, &logicalBitstreamPtr);
@@ -189,10 +198,6 @@ void flacDecoderMetadataCallback(
         returnVal.mSampleRate = inputMetadata->data.stream_info.sample_rate;
         returnVal.mSampleSize = inputMetadata->data.stream_info.bits_per_sample;
         returnVal.mNumSamples = inputMetadata->data.stream_info.total_samples;
-        
-        std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
-        std::cout << "Sample size: " << returnVal.mSampleSize << " bytes" << std::endl;
-        std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
         // inputMetadata->data.stream_info.channels;
     }
     
@@ -206,7 +211,7 @@ void flacDecoderErrorCallback(
     std::cout << "FLAC error callback: " << FLAC__StreamDecoderErrorStatusString[errorStatus];
 }
 
-uint32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal) {
+int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal) {
     std::cout << "Reading file as FLAC..." << std::endl;
     returnVal.mInputFileFormat = Waveform::FLAC;
     

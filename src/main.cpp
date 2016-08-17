@@ -27,13 +27,17 @@ int run(std::string inputAudioFilename) {
     
     std::cout << "Filename is " << inputAudioFilename << std::endl;
     
-    int sampleRate = 48000;
+    Waveform inputAudio;
+    int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
+    
+    if(errorCode) {
+        std::cerr << "Fatal error! Exiting application..." << std::endl;
+        return -1;
+    }
     
     int frameMilliseconds = 25;
-    int frameSampleSize = (frameMilliseconds * sampleRate) / 1000;
+    int frameSampleSize = (frameMilliseconds * inputAudio.mSampleRate) / 1000;
     
-    Waveform inputAudio;
-    loadWaveform(inputAudioFilename, inputAudio);
     
     {
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * frameSampleSize);
