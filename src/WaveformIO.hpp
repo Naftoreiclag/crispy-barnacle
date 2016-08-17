@@ -29,8 +29,11 @@ struct Waveform {
     
     InputFileFormat mInputFileFormat;
     
-    // Little endian samples
-    uint8_t* mOriginalSamples;
+    // original samples in 64-bit words (max value is still determined by mSampleSize)
+    int64_t* mOriginalSamples;
+    
+    // Converted into floats
+    float* mFloatSamples;
     
     int32_t mSampleSize; // Size of individual samples in bytes
     int64_t mNumSamples; // Total number of samples

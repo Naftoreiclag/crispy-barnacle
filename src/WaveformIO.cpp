@@ -58,7 +58,18 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
     }
     if(errorVal) {
         std::cerr << "Error while decoding!" << std::endl;
+        
+        delete[] returnVal.mOriginalSamples;
     } else {
+        std::cout << "Converting into floats... ";
+        returnVal.mFloatSamples = new float[returnVal.mNumSamples];
+        int64_t maxVal = 1 << (returnVal.mSampleSize * 8 - 1);
+        double fmaxVal = maxVal;
+        for(int64_t i = 0; i < returnVal.mNumSamples; ++ i) {
+            returnVal.mFloatSamples[i] = ((double) returnVal.mOriginalSamples[i]) / fmaxVal;
+        }
+        std::cout << "done" << std::endl;
+        
         std::cout << "Done decoding ===" << std::endl;
         std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
         std::cout << "Sample size: " << (returnVal.mSampleSize * 8) << " bits" << std::endl;
@@ -102,9 +113,15 @@ int32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal) {
     int signage = 1; // 0 = unsigned, 1 = signed
     char inputBuffer[4096 * returnVal.mSampleSize];
     
+    if(returnVal.mSampleSize > 2) {
+        std::cerr << "Fatal error! Unsupported ogg-vorbis sample size (" << returnVal.mSampleSize << " bytes)!" << std::endl;
+        ov_clear(&inputVorbisFile);
+        return -1;
+    }
+    
     returnVal.mNumSamples = ov_pcm_total(&inputVorbisFile, -1);
     
-    returnVal.mOriginalSamples = new uint8_t[returnVal.mNumSamples * returnVal.mSampleSize];
+    returnVal.mOriginalSamples = new int64_t[returnVal.mNumSamples];
     
     returnVal.mRunningTotal = 0;
     
@@ -125,8 +142,15 @@ int32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal) {
         else {
             int numSamplesRead = ovRet / returnVal.mSampleSize;
             for(int i = 0; i < numSamplesRead; ++ i) {
-                for(int32_t le = 0; le < returnVal.mSampleSize; ++ le) {
-                    returnVal.mOriginalSamples[(returnVal.mRunningTotal + i) * returnVal.mSampleSize + le] = inputBuffer[i * returnVal.mSampleSize + le] & 0xff;
+                
+                // Ogg vorbis sample sizes are either 1 or 2 bytes
+                
+                if(returnVal.mSampleSize == 2) {
+                    int16_t sample = ((inputBuffer[i * 2] & 0x00ff) << 8) | (inputBuffer[i * 2 + 1] & 0x00ff);
+                    returnVal.mOriginalSamples[returnVal.mRunningTotal + i] = sample;
+                } else {
+                    int8_t sample = inputBuffer[i] & 0xff;
+                    returnVal.mOriginalSamples[returnVal.mRunningTotal + i] = sample;
                 }
             }
             returnVal.mRunningTotal += numSamplesRead;
@@ -162,7 +186,7 @@ FLAC__StreamDecoderWriteStatus flacDecoderWriteCallback(
     
     // Called only once
     if(inputFrame->header.number.sample_number == 0) {
-        returnVal.mOriginalSamples = new uint8_t[returnVal.mNumSamples * returnVal.mSampleSize];
+        returnVal.mOriginalSamples = new int64_t[returnVal.mNumSamples];
         returnVal.mRunningTotal = 0;
     }
     
@@ -170,9 +194,7 @@ FLAC__StreamDecoderWriteStatus flacDecoderWriteCallback(
     unsigned int numSamplesRead = inputFrame->header.blocksize;
     
     for(unsigned int i = 0; i < numSamplesRead; ++ i) {
-        for(int32_t le = 0; le < returnVal.mSampleSize; ++ le) {
-            returnVal.mOriginalSamples[returnVal.mRunningTotal * returnVal.mSampleSize + le] = (inputBuffer[0][i] >> (le * 8)) & 0xff;
-        }
+        returnVal.mOriginalSamples[returnVal.mRunningTotal] = inputBuffer[0][i];
         ++ returnVal.mRunningTotal;
         if(returnVal.mRunningTotal == returnVal.mNumSamples) {
             break;
@@ -247,4 +269,5 @@ int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal) {
 // Delete a waveform from memory
 void freeWaveform(Waveform& wavefrom) {
     delete[] wavefrom.mOriginalSamples;
+    delete[] wavefrom.mFloatSamples;
 }
