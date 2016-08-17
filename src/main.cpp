@@ -21,12 +21,19 @@
 
 #include "fftw3.h"
 
+#include "WaveformIO.hpp"
+
 int run(std::string inputAudioFilename) {
+    
+    std::cout << "Filename is " << inputAudioFilename << std::endl;
     
     int sampleRate = 48000;
     
     int frameMilliseconds = 25;
     int frameSampleSize = (frameMilliseconds * sampleRate) / 1000;
+    
+    Waveform inputAudio;
+    loadWaveform(inputAudioFilename, inputAudio);
     
     {
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * frameSampleSize);
