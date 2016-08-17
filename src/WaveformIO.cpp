@@ -61,7 +61,7 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
     } else {
         std::cout << "Done decoding ===" << std::endl;
         std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
-        std::cout << "Sample size: " << returnVal.mSampleSize << " bytes" << std::endl;
+        std::cout << "Sample size: " << (returnVal.mSampleSize * 8) << " bits" << std::endl;
         std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
     }
     std::cout << std::endl;
@@ -196,7 +196,7 @@ void flacDecoderMetadataCallback(
     // other
     if(inputMetadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
         returnVal.mSampleRate = inputMetadata->data.stream_info.sample_rate;
-        returnVal.mSampleSize = inputMetadata->data.stream_info.bits_per_sample;
+        returnVal.mSampleSize = inputMetadata->data.stream_info.bits_per_sample >> 3;
         returnVal.mNumSamples = inputMetadata->data.stream_info.total_samples;
         // inputMetadata->data.stream_info.channels;
     }
