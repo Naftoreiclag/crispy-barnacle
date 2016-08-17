@@ -162,13 +162,11 @@ FLAC__StreamDecoderWriteStatus flacDecoderWriteCallback(
     
     for(unsigned int i = 0; i < numSamplesRead; ++ i) {
         for(int32_t le = 0; le < returnVal.mSampleSize; ++ le) {
-            returnVal.mOriginalSamples[(returnVal.mRunningTotal + i) * returnVal.mSampleSize + le] = (inputBuffer[0][i] >> (le * 8)) & 0xff;
+            returnVal.mOriginalSamples[returnVal.mRunningTotal * returnVal.mSampleSize + le] = (inputBuffer[0][i] >> (le * 8)) & 0xff;
         }
-        returnVal.mRunningTotal += numSamplesRead;
-        if(returnVal.mRunningTotal > returnVal.mNumSamples) {
-            std::cerr << "Sample count mismatch! Header declares too few samples!" << std::endl;
-            std::cerr << "Discovered "<< returnVal.mRunningTotal << " samples!" << std::endl;
-            return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+        ++ returnVal.mRunningTotal;
+        if(returnVal.mRunningTotal == returnVal.mNumSamples) {
+            break;
         }
     }
     
