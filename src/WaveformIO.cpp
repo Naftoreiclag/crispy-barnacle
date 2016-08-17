@@ -74,6 +74,7 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
         std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
         std::cout << "Sample size: " << (returnVal.mSampleSize * 8) << " bits" << std::endl;
         std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
+        std::cout << "Memory allocated: " << ((sizeof(int64_t) + sizeof(float)) * returnVal.mNumSamples) << " bytes" << std::endl;
     }
     std::cout << std::endl;
     
