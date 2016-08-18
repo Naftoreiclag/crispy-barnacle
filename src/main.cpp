@@ -27,6 +27,11 @@
 
 #include "WaveformIO.hpp"
 
+struct ComplexNumber {
+    double real;
+    double imag;
+};
+
 int run(std::string inputAudioFilename) {
     
     std::cout << "Filename is " << inputAudioFilename << std::endl;
@@ -56,6 +61,11 @@ int run(std::string inputAudioFilename) {
     
     std::cout << "Allocating memory for power spectral estimates... ";
     
+    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numFrames];
+    for(int64_t i = 0; i < numFrames; ++ i) {
+        fftwCompleteOutput[i] = new ComplexNumber[frameLengthSamples];
+    }
+    
     double** powerEstimates = new double*[numFrames];
     for(int64_t i = 0; i < numFrames; ++ i) {
         powerEstimates[i] = new double[frameLengthSamples];
@@ -79,7 +89,9 @@ int run(std::string inputAudioFilename) {
         std::cout << "Window function: Hanning" << std::endl;
         std::cout << "Performing DFT... ";
         for(int64_t frameIndex = 0; frameIndex < numFrames; ++ frameIndex) {
+            
             int64_t frameStartSampleIndex = frameIndex * frameStepSamples;
+            
             for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
                 int64_t currentSampleIndex = frameStartSampleIndex + inFrameSample;
                 
@@ -106,6 +118,10 @@ int run(std::string inputAudioFilename) {
             fftw_execute(fftwPlan);
             
             for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
+                
+                fftwCompleteOutput[frameIndex][inFrameSample].real = fftwOutput[inFrameSample][0];
+                fftwCompleteOutput[frameIndex][inFrameSample].imag = fftwOutput[inFrameSample][1];
+                
                 double real = fftwOutput[inFrameSample][0];
                 double imaginary = fftwOutput[inFrameSample][1];
                 double absValSq = real * real + imaginary * imaginary;
@@ -122,6 +138,22 @@ int run(std::string inputAudioFilename) {
         fftw_free(fftwInput);
     }
     
+    {
+        std::cout << "Computing power estimates... ";
+        for(int64_t frameIndex = 0; frameIndex < numFrames; ++ frameIndex) {
+            for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
+                
+                double real = fftwCompleteOutput[frameIndex][inFrameSample].real;
+                double imaginary = fftwCompleteOutput[frameIndex][inFrameSample].imag;
+                double absValSq = real * real + imaginary * imaginary;
+                double denom = frameLengthSamples;
+                
+                powerEstimates[frameIndex][inFrameSample] = absValSq / denom;
+            }
+        }
+        std::cout << "done" << std::endl;
+    }
+    
     // Debug output power estimates as image
     {
         std::cout << "Writing debug image... ";
@@ -129,9 +161,13 @@ int run(std::string inputAudioFilename) {
         int height = frameLengthSamples;
         char debugPowerEstimates[width * height];
         
-        for(int y = 0; y < height; ++ y) {
-            for(int x = 0; x < width; ++ x) {
-                double power = powerEstimates[x][height - y];
+        for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                
+                int frame = pixelX;
+                int spectrum = height - pixelY;
+                
+                double power = powerEstimates[frame][spectrum];
                 
                 if(power > 1.0) {
                     power = 1.0;
@@ -139,7 +175,15 @@ int run(std::string inputAudioFilename) {
                     power = 0.0;
                 }
                 
-                debugPowerEstimates[y * width + x] = power * 255;
+                /*
+                double ay = spectrum;
+                double ax = frame;
+                
+                power = (ay * width + ax) / ((double) (width * height));
+                */
+                
+                debugPowerEstimates[(pixelY * width + pixelX)    ] = power * 255;
+                //debugPowerEstimates[(pixelY * width + pixelX) * 2 + 1] = power * 255;
             }
         }
         
@@ -147,6 +191,11 @@ int run(std::string inputAudioFilename) {
         
         std::cout << "done" << std::endl;
     }
+    
+    for(int64_t i = 0; i < numFrames; ++ i) {
+        delete[] fftwCompleteOutput[i];
+    }
+    delete[] fftwCompleteOutput;
     
     for(int64_t i = 0; i < numFrames; ++ i) {
         delete[] powerEstimates[i];
