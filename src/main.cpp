@@ -28,6 +28,13 @@
 #include "WaveformIO.hpp"
 #include "DebugOutput.hpp"
 
+double melScale(double hertz) {
+    return 1127 * std::log(hertz / 700 + 1);
+}
+
+double invMelScale(double mels) {
+    return 700 * (std::exp(mels / 1127) - 1);
+}
 
 struct ComplexNumber {
     double real;
@@ -42,7 +49,7 @@ int run(std::string inputAudioFilename) {
     int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
     
     if(errorCode) {
-        std::cerr << "Fatal error! Exiting application..." << std::endl;
+        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
         return -1;
     }
     
@@ -54,13 +61,42 @@ int run(std::string inputAudioFilename) {
     int32_t spectrumLength = windowLength / 2;
     int32_t windowStep = (frameStepMilliseconds * inputAudio.mSampleRate) / 1000;
     
-    std::cout << "Frame length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
-    std::cout << "Frame step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
+    std::cout << "Window function: Hanning" << std::endl;
+    std::cout << "Window length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
+    if(windowLength < 0) {
+        std::cerr << "Fatal error! Length cannot be negative!" << std::endl;
+        return -1;
+    }
+    
+    std::cout << "Window step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
+    if(windowStep < 1) {
+        std::cerr << "Fatal error! Step must be greater than 0!" << std::endl;
+        return -1;
+    }
+    
     int64_t numWindows = 0;
     for(int64_t windowIndex = 0; (windowIndex * windowStep) < inputAudio.mNumSamples; ++ windowIndex) {
         numWindows ++;
     }
-    std::cout << "Frame count: " << numWindows << std::endl;
+    std::cout << "Window count: " << numWindows << std::endl;
+    
+    int32_t numFilterbanks = 26;
+    std::cout << "Filterbank energy count: " << numFilterbanks << std::endl;
+    int32_t numMelFrequencies = 12;
+    std::cout << "Mel frequency count:" << numMelFrequencies << std::endl;
+    if(numMelFrequencies > numFilterbanks) {
+        std::cerr << "Fatal error! Mel frequency count is greater than the number of filterbank energies!" << std::endl;
+        return -1;
+    }
+    
+    double filterMinFreq = 300;
+    double filterMaxFreq = 8000;
+    std::cout << "Lower filterbank range: " << filterMinFreq << "hz" << std::endl;
+    std::cout << "Upper filterbank range: " << filterMaxFreq << "hz" << std::endl;
+    if(filterMinFreq > filterMaxFreq) {
+        std::cerr << "Fatal error! Invalid range!" << std::endl;
+        return -1;
+    }
     
     std::cout << "Allocating additional memory... ";
     double** powerEstimates = new double*[numWindows];
@@ -71,8 +107,13 @@ int run(std::string inputAudioFilename) {
     for(int64_t i = 0; i < numWindows; ++ i) {
         fftwCompleteOutput[i] = new ComplexNumber[windowLength];
     }
+    int32_t filterbank = new int32_t[numFilterbanks + 2];
+    double* filterbankEnergies = new double[numFilterbanks];
+    double* loggedFilterbankEnergies = new double[numFilterbanks];
+    double* mfccs = new double[numMelFrequencies];
     std::cout << "done" << std::endl;
     
+    // FFTW transform
     {
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
         fftw_complex* fftwOutput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
@@ -86,7 +127,6 @@ int run(std::string inputAudioFilename) {
             fftwInput[windowSample][1] = 0;
         }
         
-        std::cout << "Window function: Hanning" << std::endl;
         std::cout << "Performing DFT... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             
@@ -131,6 +171,7 @@ int run(std::string inputAudioFilename) {
         fftw_free(fftwInput);
     }
     
+    // Power estmates
     {
         std::cout << "Computing power estimates... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
@@ -146,6 +187,13 @@ int run(std::string inputAudioFilename) {
             }
         }
         std::cout << "done" << std::endl;
+    }
+    
+    // Mel filterbank
+    {
+        for(int32_t i = 0; i < numFilterbanks + 2; ++ i) {
+            
+        }
     }
     
     // Debug output power estimates as image
@@ -264,6 +312,11 @@ int run(std::string inputAudioFilename) {
         delete[] powerEstimates[i];
     }
     delete[] powerEstimates;
+    
+    delete[] filterbank;
+    delete[] filterbankEnergies;
+    delete[] loggedFilterbankEnergies;
+    delete[] mfccs;
     
     return 0;
 }
