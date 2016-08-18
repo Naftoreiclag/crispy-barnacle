@@ -61,8 +61,8 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
         
         delete[] returnVal.mOriginalSamples;
     } else {
-        std::cout << "Converting into floats... ";
-        returnVal.mFloatSamples = new float[returnVal.mNumSamples];
+        std::cout << "Converting into floats...";
+        returnVal.mFloatSamples = new double[returnVal.mNumSamples];
         int64_t maxVal = 1 << (returnVal.mSampleSize * 8 - 1);
         double fmaxVal = maxVal;
         for(int64_t i = 0; i < returnVal.mNumSamples; ++ i) {
@@ -74,7 +74,7 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
         std::cout << "Sample rate: " << returnVal.mSampleRate << std::endl;
         std::cout << "Sample size: " << (returnVal.mSampleSize * 8) << " bits" << std::endl;
         std::cout << "Sample count: " << returnVal.mNumSamples << std::endl;
-        std::cout << "Memory allocated: " << ((sizeof(int64_t) + sizeof(float)) * returnVal.mNumSamples) << " bytes" << std::endl;
+        std::cout << "Memory allocated: " << ((sizeof(int64_t) + sizeof(double)) * returnVal.mNumSamples) << " bytes" << std::endl;
     }
     std::cout << std::endl;
     

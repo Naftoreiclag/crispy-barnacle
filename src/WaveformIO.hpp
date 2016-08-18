@@ -33,7 +33,7 @@ struct Waveform {
     int64_t* mOriginalSamples;
     
     // Converted into floats
-    float* mFloatSamples;
+    double* mFloatSamples;
     
     int32_t mSampleSize; // Size of individual samples in bytes
     int64_t mNumSamples; // Total number of samples
