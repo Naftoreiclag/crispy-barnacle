@@ -26,6 +26,8 @@
 #include "stb_image_write.h"
 
 #include "WaveformIO.hpp"
+#include "DebugOutput.hpp"
+
 
 struct ComplexNumber {
     double real;
@@ -148,53 +150,107 @@ int run(std::string inputAudioFilename) {
     
     // Debug output power estimates as image
     {
-        std::cout << "Writing debug image... ";
-        int width = numWindows;
-        int height = spectrumLength;
-        char debugPowerEstimates[width * height * 3];
         
-        for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
-            for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                
-                int frame = pixelX;
-                int spectrum = height - pixelY;
-                
-                {
-                    double power = powerEstimates[frame][spectrum];
+        std::cout << "Writing debug images... ";
+        {
+            int width = numWindows;
+            int height = spectrumLength;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
-                    if(power > 1.0) {
-                        power = 1.0;
-                    } else if(power < 0.0) {
-                        power = 0.0;
+                    int frame = pixelX;
+                    int spectrum = height - pixelY;
+                    
+                    {
+                        double power = powerEstimates[frame][spectrum];
+                        
+                        if(power > 1.0) {
+                            power = 1.0;
+                        } else if(power < 0.0) {
+                            power = 0.0;
+                        }
+                        
+                        RGB heat = colorrampSevenHeat(power);
+                        
+                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                    }
+                }
+            }
+            stbi_write_png("debug_power.png", width, height, 3, imageData, width * 3);
+        }
+        std::cout << "Writing debug images... ";
+        {
+            int width = numWindows;
+            int height = spectrumLength;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                    
+                    int frame = pixelX;
+                    int spectrum = height - pixelY;
+                    
+                    {
+                        double power = powerEstimates[frame][spectrum];
+                        power = std::sqrt(power);
+                        
+                        if(power > 1.0) {
+                            power = 1.0;
+                        } else if(power < 0.0) {
+                            power = 0.0;
+                        }
+                        
+                        RGB heat = colorrampSevenHeat(power);
+                        
+                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                    }
+                }
+            }
+            stbi_write_png("debug_power_sqrt.png", width, height, 3, imageData, width * 3);
+        }
+        {
+            int width = numWindows;
+            int height = spectrumLength;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                    
+                    int frame = pixelX;
+                    int spectrum = height - pixelY;
+                    
+                    double real = fftwCompleteOutput[frame][spectrum].real;
+                    double imag = fftwCompleteOutput[frame][spectrum].imag;
+                    
+                    if(real < 0) real = -real;
+                    if(imag < 0) imag = -imag;
+                    
+                    if(real > 1.0) {
+                        real = 1.0;
+                    } else if(real < 0.0) {
+                        real = 0.0;
                     }
                     
-                    debugPowerEstimates[(pixelY * width + pixelX) * 3    ] = power * 255;
+                    if(imag > 1.0) {
+                        imag = 1.0;
+                    } else if(imag < 0.0) {
+                        imag = 0.0;
+                    }
+                    
+                    imageData[(pixelY * width + pixelX) * 3    ] = real * 255;
+                    imageData[(pixelY * width + pixelX) * 3 + 1] = imag * 255;
+                    imageData[(pixelY * width + pixelX) * 3 + 2] = 0;
                 }
-                
-                double real = fftwCompleteOutput[frame][spectrum].real;
-                double imag = fftwCompleteOutput[frame][spectrum].imag;
-                
-                if(real < 0) real = -real;
-                if(imag < 0) imag = -imag;
-                
-                if(real > 1.0) {
-                    real = 1.0;
-                } else if(real < 0.0) {
-                    real = 0.0;
-                }
-                
-                if(imag > 1.0) {
-                    imag = 1.0;
-                } else if(imag < 0.0) {
-                    imag = 0.0;
-                }
-                
-                debugPowerEstimates[(pixelY * width + pixelX) * 3 + 1] = 0;//real * 255;
-                debugPowerEstimates[(pixelY * width + pixelX) * 3 + 2] = 0;//imag * 255;
             }
+            
+            stbi_write_png("debug_fftw_output.png", width, height, 3, imageData, width * 3);
         }
-        
-        stbi_write_png("debug.png", width, height, 3, debugPowerEstimates, width * 3);
         
         std::cout << "done" << std::endl;
     }

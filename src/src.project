@@ -23,6 +23,8 @@
     <File Name="main.cpp"/>
     <File Name="WaveformIO.hpp"/>
     <File Name="WaveformIO.cpp"/>
+    <File Name="DebugOutput.hpp"/>
+    <File Name="DebugOutput.cpp"/>
   </VirtualDirectory>
   <Settings Type="Executable">
     <GlobalSettings>
