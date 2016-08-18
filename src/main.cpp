@@ -99,18 +99,23 @@ int run(std::string inputAudioFilename) {
     }
     
     std::cout << "Allocating additional memory... ";
+    // The frequency represented by fftwCompleteOutput[i][n] in hertz is equal to:
+    // freq = n * inputAudio.mSampleRate / windowLength
+    // Inverse is approximated by:
+    // bin = floor((freq * (windowLength + 1)) / inputAudio.mSampleRate)
     double** powerEstimates = new double*[numWindows];
+    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
+    double** filterbankEnergies = new double*[numWindows];
+    double** loggedFilterbankEnergies = new double*[numWindows];
+    double** mfccs = new double*[numWindows];
     for(int64_t i = 0; i < numWindows; ++ i) {
         powerEstimates[i] = new double[spectrumLength];
-    }
-    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
-    for(int64_t i = 0; i < numWindows; ++ i) {
         fftwCompleteOutput[i] = new ComplexNumber[windowLength];
+        filterbankEnergies[i] = new double[numFilterbanks];
+        loggedFilterbankEnergies[i] = new double[numFilterbanks];
+        mfccs[i] = new double[numMelFrequencies];
     }
-    int32_t filterbank = new int32_t[numFilterbanks + 2];
-    double* filterbankEnergies = new double[numFilterbanks];
-    double* loggedFilterbankEnergies = new double[numFilterbanks];
-    double* mfccs = new double[numMelFrequencies];
+    double* filterbank = new double[numFilterbanks + 2];
     std::cout << "done" << std::endl;
     
     // FFTW transform
@@ -180,7 +185,7 @@ int run(std::string inputAudioFilename) {
                 double real = fftwCompleteOutput[windowIndex][windowSample].real;
                 double imaginary = fftwCompleteOutput[windowIndex][windowSample].imag;
                 double absValSq = real * real + imaginary * imaginary;
-                double denom = windowLength;
+                double denom = windowLength; // NOT spectrumLength!
                 
                 
                 powerEstimates[windowIndex][windowSample] = absValSq / denom;
@@ -194,20 +199,63 @@ int run(std::string inputAudioFilename) {
         double filterMaxFreqMels = melScale(filterMaxFreq);
         double filterMinFreqMels = melScale(filterMinFreq);
         
-        double melsStep = (filterMaxFreqMels - filterMinFreqMels) / (numFilterbanks + 1)
+        std::cout << "Mel filterbank (hz): ";
+        double melsStep = (filterMaxFreqMels - filterMinFreqMels) / (numFilterbanks + 1);
         for(int32_t i = 0; i < numFilterbanks + 2; ++ i) {
             double mels = melsStep * i + filterMinFreqMels;
             double hertz = invMelScale(mels);
             
+            filterbank[i] = hertz;
             
-            
+            std::cout << hertz;
+            if(i != numFilterbanks + 1) {
+                std::cout << ", ";
+            }
         }
+        std::cout << std::endl;
     }
+    
+    //
+    {
+        std::cout << "Computing filterbank energies... ";
+        for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
+            for(int32_t filterbankIndex = 0; filterbankIndex < numFilterbanks; ++ filterbankIndex) {
+                double filterBegin = filterbank[filterbankIndex];
+                double filterMiddle = filterbank[filterbankIndex + 1];
+                double filterEnd = filterbank[filterbankIndex + 2];
+                
+                
+                double totalEnergy = 0;
+                for(int64_t windowSample = 0; windowSample < spectrumLength; ++ windowSample) {
+                    
+                    double sampleFrequency = ((double) (inputAudio.mSampleRate * windowSample)) / ((double) windowLength);
+                    
+                    if(sampleFrequency < filterBegin) continue;
+                    if(sampleFrequency > filterEnd) break;
+                    
+                    double filterY = filterMiddle - sampleFrequency;
+                    if(filterY < 0) {
+                        filterY /= filterMiddle - filterEnd;
+                    } else {
+                        filterY /= filterMiddle - filterBegin;
+                    }
+                    
+                    totalEnergy += powerEstimates[windowIndex][windowSample] * filterY;
+                }
+                
+                filterbankEnergies[windowIndex][filterbankIndex] = totalEnergy;
+                loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy);
+            }
+        }
+        
+        
+        std::cout << "done" << std::endl;
+    } 
     
     // Debug output power estimates as image
     {
-        
         std::cout << "Writing debug images... ";
+        // Power estimate
         {
             int width = numWindows;
             int height = spectrumLength;
@@ -238,7 +286,7 @@ int run(std::string inputAudioFilename) {
             }
             stbi_write_png("debug_power.png", width, height, 3, imageData, width * 3);
         }
-        std::cout << "Writing debug images... ";
+        // Power estimate sqrt
         {
             int width = numWindows;
             int height = spectrumLength;
@@ -270,6 +318,7 @@ int run(std::string inputAudioFilename) {
             }
             stbi_write_png("debug_power_sqrt.png", width, height, 3, imageData, width * 3);
         }
+        // FFTW output
         {
             int width = numWindows;
             int height = spectrumLength;
@@ -308,23 +357,91 @@ int run(std::string inputAudioFilename) {
             stbi_write_png("debug_fftw_output.png", width, height, 3, imageData, width * 3);
         }
         
+        // Mel filterbank energies
+        {
+            int width = numWindows;
+            int height = numFilterbanks;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                    
+                    int frame = pixelX;
+                    int spectrum = height - pixelY;
+                    
+                    {
+                        double power = filterbankEnergies[frame][spectrum];
+                        
+                        if(power > 1.0) {
+                            power = 1.0;
+                        } else if(power < 0.0) {
+                            power = 0.0;
+                        }
+                        
+                        RGB heat = colorrampSevenHeat(power);
+                        
+                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                    }
+                }
+            }
+            stbi_write_png("debug_filterbank_energies.png", width, height, 3, imageData, width * 3);
+        }
+        // Mel filterbank energies (log)
+        {
+            int width = numWindows;
+            int height = numFilterbanks;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                    
+                    int frame = pixelX;
+                    int spectrum = height - pixelY;
+                    
+                    {
+                        double power = loggedFilterbankEnergies[frame][spectrum];
+                        
+                        if(power > 1.0) {
+                            power = 1.0;
+                        } else if(power < 0.0) {
+                            power = 0.0;
+                        }
+                        
+                        RGB heat = colorrampSevenHeat(power);
+                        
+                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                    }
+                }
+            }
+            stbi_write_png("debug_filterbank_energies_log.png", width, height, 3, imageData, width * 3);
+        }
+        
         std::cout << "done" << std::endl;
     }
     
+    std::cout << "Cleaning up... " << std::endl;
+    
     for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] fftwCompleteOutput[i];
+        delete[] powerEstimates[i];
+        delete[] filterbankEnergies[i];
+        delete[] loggedFilterbankEnergies[i];
+        delete[] mfccs[i];
     }
     delete[] fftwCompleteOutput;
-    
-    for(int64_t i = 0; i < numWindows; ++ i) {
-        delete[] powerEstimates[i];
-    }
     delete[] powerEstimates;
-    
-    delete[] filterbank;
     delete[] filterbankEnergies;
     delete[] loggedFilterbankEnergies;
     delete[] mfccs;
+    
+    delete[] filterbank;
+    
+    freeWaveform(inputAudio);
+    std::cout << "done" << std::endl;
     
     return 0;
 }
