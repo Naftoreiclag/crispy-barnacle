@@ -191,7 +191,15 @@ int run(std::string inputAudioFilename) {
     
     // Mel filterbank
     {
+        double filterMaxFreqMels = melScale(filterMaxFreq);
+        double filterMinFreqMels = melScale(filterMinFreq);
+        
+        double melsStep = (filterMaxFreqMels - filterMinFreqMels) / (numFilterbanks + 1)
         for(int32_t i = 0; i < numFilterbanks + 2; ++ i) {
+            double mels = melsStep * i + filterMinFreqMels;
+            double hertz = invMelScale(mels);
+            
+            
             
         }
     }
