@@ -148,7 +148,11 @@ int run(std::string inputAudioFilename) {
                 double absValSq = real * real + imaginary * imaginary;
                 double denom = frameLengthSamples;
                 
+                
                 powerEstimates[frameIndex][inFrameSample] = absValSq / denom;
+                if(inFrameSample > frameLengthSamples / 2) {
+                    powerEstimates[frameIndex][inFrameSample] = 1.0;
+                }
             }
         }
         std::cout << "done" << std::endl;
@@ -159,7 +163,7 @@ int run(std::string inputAudioFilename) {
         std::cout << "Writing debug image... ";
         int width = numFrames;
         int height = frameLengthSamples;
-        char debugPowerEstimates[width * height];
+        char debugPowerEstimates[width * height * 3];
         
         for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
             for(int pixelX = 0; pixelX < width; ++ pixelX) {
@@ -167,27 +171,42 @@ int run(std::string inputAudioFilename) {
                 int frame = pixelX;
                 int spectrum = height - pixelY;
                 
-                double power = powerEstimates[frame][spectrum];
-                
-                if(power > 1.0) {
-                    power = 1.0;
-                } else if(power < 0.0) {
-                    power = 0.0;
+                {
+                    double power = powerEstimates[frame][spectrum];
+                    
+                    if(power > 1.0) {
+                        power = 1.0;
+                    } else if(power < 0.0) {
+                        power = 0.0;
+                    }
+                    
+                    debugPowerEstimates[(pixelY * width + pixelX) * 3    ] = power * 255;
                 }
                 
-                /*
-                double ay = spectrum;
-                double ax = frame;
+                double real = fftwCompleteOutput[frame][spectrum].real;
+                double imag = fftwCompleteOutput[frame][spectrum].imag;
                 
-                power = (ay * width + ax) / ((double) (width * height));
-                */
+                if(real < 0) real = -real;
+                if(imag < 0) imag = -imag;
                 
-                debugPowerEstimates[(pixelY * width + pixelX)    ] = power * 255;
-                //debugPowerEstimates[(pixelY * width + pixelX) * 2 + 1] = power * 255;
+                if(real > 1.0) {
+                    real = 1.0;
+                } else if(real < 0.0) {
+                    real = 0.0;
+                }
+                
+                if(imag > 1.0) {
+                    imag = 1.0;
+                } else if(imag < 0.0) {
+                    imag = 0.0;
+                }
+                
+                debugPowerEstimates[(pixelY * width + pixelX) * 3 + 1] = 0;//real * 255;
+                debugPowerEstimates[(pixelY * width + pixelX) * 3 + 2] = 0;//imag * 255;
             }
         }
         
-        stbi_write_png("debug.png", width, height, 1, debugPowerEstimates, width);
+        stbi_write_png("debug.png", width, height, 3, debugPowerEstimates, width * 3);
         
         std::cout << "done" << std::endl;
     }
