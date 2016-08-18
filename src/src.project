@@ -41,6 +41,7 @@
         <IncludePath Value="$(OGG_HOME)/include"/>
         <IncludePath Value="$(VORBIS_HOME)/include"/>
         <IncludePath Value="$(FLAC_HOME)/include"/>
+        <IncludePath Value="../depend/header/stb"/>
       </Compiler>
       <Linker Options="" Required="yes">
         <LibraryPath Value="$(FFTW_HOME)/lib"/>

@@ -22,6 +22,9 @@
 
 #include "fftw3.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "WaveformIO.hpp"
 
 int run(std::string inputAudioFilename) {
@@ -88,7 +91,7 @@ int run(std::string inputAudioFilename) {
                     
                     // Apply hanning window
                     
-                    // Horray for compiler optimizations
+                    // Hooray for compiler optimizations
                     double tau = 6.28318530717958647692528677;
                     double numerator = tau * inFrameSample;
                     double denominator = frameLengthSamples - 1;
@@ -117,6 +120,32 @@ int run(std::string inputAudioFilename) {
         fftw_destroy_plan(fftwPlan);
         fftw_free(fftwOutput);
         fftw_free(fftwInput);
+    }
+    
+    // Debug output power estimates as image
+    {
+        std::cout << "Writing debug image... ";
+        int width = numFrames;
+        int height = frameLengthSamples;
+        char debugPowerEstimates[width * height];
+        
+        for(int y = 0; y < height; ++ y) {
+            for(int x = 0; x < width; ++ x) {
+                double power = powerEstimates[x][height - y];
+                
+                if(power > 1.0) {
+                    power = 1.0;
+                } else if(power < 0.0) {
+                    power = 0.0;
+                }
+                
+                debugPowerEstimates[y * width + x] = power * 255;
+            }
+        }
+        
+        stbi_write_png("debug.png", width, height, 1, debugPowerEstimates, width);
+        
+        std::cout << "done" << std::endl;
     }
     
     for(int64_t i = 0; i < numFrames; ++ i) {
