@@ -48,52 +48,50 @@ int run(std::string inputAudioFilename) {
     int32_t frameStepMilliseconds = 10;
     
     // Rounded toward zero
-    int32_t frameLengthSamples = (frameLengthMilliseconds * inputAudio.mSampleRate) / 1000;
-    int32_t frameStepSamples = (frameStepMilliseconds * inputAudio.mSampleRate) / 1000;
+    int32_t windowLength = (frameLengthMilliseconds * inputAudio.mSampleRate) / 1000;
+    int32_t spectrumLength = windowLength / 2;
+    int32_t windowStep = (frameStepMilliseconds * inputAudio.mSampleRate) / 1000;
     
-    std::cout << "Frame length: " << frameLengthSamples << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
-    std::cout << "Frame step: " << frameStepSamples << " samples / " << frameStepMilliseconds << "ms" << std::endl;
-    int64_t numFrames = 0;
-    for(int64_t frameIndex = 0; (frameIndex * frameStepSamples) < inputAudio.mNumSamples; ++ frameIndex) {
-        numFrames ++;
+    std::cout << "Frame length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
+    std::cout << "Frame step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
+    int64_t numWindows = 0;
+    for(int64_t windowIndex = 0; (windowIndex * windowStep) < inputAudio.mNumSamples; ++ windowIndex) {
+        numWindows ++;
     }
-    std::cout << "Frame count: " << numFrames << std::endl;
+    std::cout << "Frame count: " << numWindows << std::endl;
     
-    std::cout << "Allocating memory for power spectral estimates... ";
-    
-    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numFrames];
-    for(int64_t i = 0; i < numFrames; ++ i) {
-        fftwCompleteOutput[i] = new ComplexNumber[frameLengthSamples];
+    std::cout << "Allocating additional memory... ";
+    double** powerEstimates = new double*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        powerEstimates[i] = new double[spectrumLength];
     }
-    
-    double** powerEstimates = new double*[numFrames];
-    for(int64_t i = 0; i < numFrames; ++ i) {
-        powerEstimates[i] = new double[frameLengthSamples];
+    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        fftwCompleteOutput[i] = new ComplexNumber[windowLength];
     }
-    
     std::cout << "done" << std::endl;
     
     {
-        fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * frameLengthSamples);
-        fftw_complex* fftwOutput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * frameLengthSamples);
+        fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
+        fftw_complex* fftwOutput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
         
         std::cout << "Optimizing FFTW... ";
-        fftw_plan fftwPlan = fftw_plan_dft_1d(frameLengthSamples, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
+        fftw_plan fftwPlan = fftw_plan_dft_1d(windowLength, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
         std::cout << "done" << std::endl;
         
         // Set imaginary components to be zero
-        for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
-            fftwInput[inFrameSample][1] = 0;
+        for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
+            fftwInput[windowSample][1] = 0;
         }
         
         std::cout << "Window function: Hanning" << std::endl;
         std::cout << "Performing DFT... ";
-        for(int64_t frameIndex = 0; frameIndex < numFrames; ++ frameIndex) {
+        for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             
-            int64_t frameStartSampleIndex = frameIndex * frameStepSamples;
+            int64_t beginningSample = windowIndex * windowStep;
             
-            for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
-                int64_t currentSampleIndex = frameStartSampleIndex + inFrameSample;
+            for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
+                int64_t currentSampleIndex = beginningSample + windowSample;
                 
                 double sample;
                 if(currentSampleIndex >= inputAudio.mNumSamples) {
@@ -105,29 +103,22 @@ int run(std::string inputAudioFilename) {
                     
                     // Hooray for compiler optimizations
                     double tau = 6.28318530717958647692528677;
-                    double numerator = tau * inFrameSample;
-                    double denominator = frameLengthSamples - 1;
+                    double numerator = tau * windowSample;
+                    double denominator = windowLength - 1;
                     double hanning = 0.5 * (1.0 - std::cos(numerator / denominator));
                     
                     sample *= hanning;
                 }
                 
-                fftwInput[inFrameSample][0] = sample;
+                fftwInput[windowSample][0] = sample;
             }
             
             fftw_execute(fftwPlan);
             
-            for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
+            for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
                 
-                fftwCompleteOutput[frameIndex][inFrameSample].real = fftwOutput[inFrameSample][0];
-                fftwCompleteOutput[frameIndex][inFrameSample].imag = fftwOutput[inFrameSample][1];
-                
-                double real = fftwOutput[inFrameSample][0];
-                double imaginary = fftwOutput[inFrameSample][1];
-                double absValSq = real * real + imaginary * imaginary;
-                double denom = frameLengthSamples;
-                
-                powerEstimates[frameIndex][inFrameSample] = absValSq / denom;
+                fftwCompleteOutput[windowIndex][windowSample].real = fftwOutput[windowSample][0];
+                fftwCompleteOutput[windowIndex][windowSample].imag = fftwOutput[windowSample][1];
             }
         }
         std::cout << "done" << std::endl;
@@ -140,19 +131,16 @@ int run(std::string inputAudioFilename) {
     
     {
         std::cout << "Computing power estimates... ";
-        for(int64_t frameIndex = 0; frameIndex < numFrames; ++ frameIndex) {
-            for(int64_t inFrameSample = 0; inFrameSample < frameLengthSamples; ++ inFrameSample) {
+        for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
+            for(int64_t windowSample = 0; windowSample < spectrumLength; ++ windowSample) {
                 
-                double real = fftwCompleteOutput[frameIndex][inFrameSample].real;
-                double imaginary = fftwCompleteOutput[frameIndex][inFrameSample].imag;
+                double real = fftwCompleteOutput[windowIndex][windowSample].real;
+                double imaginary = fftwCompleteOutput[windowIndex][windowSample].imag;
                 double absValSq = real * real + imaginary * imaginary;
-                double denom = frameLengthSamples;
+                double denom = windowLength;
                 
                 
-                powerEstimates[frameIndex][inFrameSample] = absValSq / denom;
-                if(inFrameSample > frameLengthSamples / 2) {
-                    powerEstimates[frameIndex][inFrameSample] = 1.0;
-                }
+                powerEstimates[windowIndex][windowSample] = absValSq / denom;
             }
         }
         std::cout << "done" << std::endl;
@@ -161,8 +149,8 @@ int run(std::string inputAudioFilename) {
     // Debug output power estimates as image
     {
         std::cout << "Writing debug image... ";
-        int width = numFrames;
-        int height = frameLengthSamples;
+        int width = numWindows;
+        int height = spectrumLength;
         char debugPowerEstimates[width * height * 3];
         
         for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
@@ -211,12 +199,12 @@ int run(std::string inputAudioFilename) {
         std::cout << "done" << std::endl;
     }
     
-    for(int64_t i = 0; i < numFrames; ++ i) {
+    for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] fftwCompleteOutput[i];
     }
     delete[] fftwCompleteOutput;
     
-    for(int64_t i = 0; i < numFrames; ++ i) {
+    for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] powerEstimates[i];
     }
     delete[] powerEstimates;
