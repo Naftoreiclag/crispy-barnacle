@@ -27,12 +27,14 @@ double melScale(double hertz);
 double invMelScale(double mels);
 
 struct MFCCParams {
-    double frameLengthMilliseconds = 25;
-    double frameStepMilliseconds = 10;
-    double filterMinFreq = 300;
-    double filterMaxFreq = 8000;
-    int32_t numFilterbanks = 26;
-    int32_t numMfccs = 12;
+    MFCCParams();
+    
+    double frameLengthMilliseconds;
+    double frameStepMilliseconds;
+    double filterMinFreq;
+    double filterMaxFreq;
+    int32_t numFilterbanks;
+    int32_t numMfccs;
 };
 
 struct MFCC {

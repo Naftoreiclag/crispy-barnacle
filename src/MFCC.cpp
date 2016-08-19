@@ -37,6 +37,15 @@ double invMelScale(double mels) {
     return 700 * (std::exp(mels / 1127) - 1);
 }
 
+MFCCParams::MFCCParams()
+: frameLengthMilliseconds(25)
+, frameStepMilliseconds(10)
+, filterMinFreq(300)
+, filterMaxFreq(8000)
+, numFilterbanks(26)
+, numMfccs(12) {
+}
+
 MFCC::MFCC(double** mfccs, int32_t windowCount, int32_t mfccCount)
 : data(mfccs)
 , numWindows(windowCount)
