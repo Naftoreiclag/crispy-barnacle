@@ -22,21 +22,10 @@
 #include "WaveformIO.hpp"
 #include "MFCC.hpp"
 
-int run(std::string inputAudioFilename) {
+int run(std::string paletteAudioFilename, std::string templateAudioFilename) {
     
-    std::cout << "Filename is " << inputAudioFilename << std::endl;
-    std::cout << std::endl;
-    
-    std::cout << "Loading mimic waveform into memory... " << std::endl;
-    Waveform inputAudio;
-    int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
-    
-    if(errorCode) {
-        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
-        return -1;
-    }
-    std::cout << "Done loading mimic waveform" << std::endl;
-    std::cout << std::endl;
+    // PARAMETERS
+    // should be kept globally constant
     
     MFCCParams params;
     
@@ -47,15 +36,62 @@ int run(std::string inputAudioFilename) {
     params.numFilterbanks = 26;
     params.numMfccs = 12;
     
-    std::cout << "Generating mimic MFCC... " << std::endl;
-    MFCC* mimicMFCCs = generateMFCC(inputAudio, params, true);
-    if(!mimicMFCCs) {
-        std::cerr << "Fatal error! Failed to generate MFCCs for mimic data!" << std::endl;
+    // ECHO
+    
+    std::cout << "Palette filename is " << paletteAudioFilename << std::endl;
+    std::cout << "Template filename is " << templateAudioFilename << std::endl;
+    std::cout << std::endl;
+    
+    // READ WAVEFORM
+    int32_t errorCode;
+    
+    std::cout << "Loading palette waveform into memory... " << std::endl;
+    Waveform paletteAudio;
+    errorCode = loadWaveform(paletteAudioFilename, paletteAudio);
+    if(errorCode) {
+        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
         return -1;
     }
-    std::cout << "Done generating mimic MFCC" << std::endl;
+    std::cout << "Done loading palette waveform" << std::endl;
+    std::cout << std::endl;
     
-    freeWaveform(inputAudio);
+    std::cout << "Loading template waveform into memory... " << std::endl;
+    Waveform templateAudio;
+    errorCode = loadWaveform(templateAudioFilename, templateAudio);
+    if(errorCode) {
+        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
+        return -1;
+    }
+    std::cout << "Done loading template waveform" << std::endl;
+    std::cout << std::endl;
+    
+    
+    // MFCC GENERATION
+    
+    std::cout << "Generating palette MFCC... " << std::endl;
+    MFCC* paletteMFCCs = generateMFCC(paletteAudio, params, true, "palette");
+    if(!paletteMFCCs) {
+        std::cerr << "Fatal error! Failed to generate MFCCs for palette data!" << std::endl;
+        return -1;
+    }
+    std::cout << "Done generating palette MFCC" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "Generating template MFCC... " << std::endl;
+    MFCC* templateMFCCs = generateMFCC(templateAudio, params, true, "template");
+    if(!templateMFCCs) {
+        std::cerr << "Fatal error! Failed to generate MFCCs for template data!" << std::endl;
+        return -1;
+    }
+    std::cout << "Done generating template MFCC" << std::endl;
+    std::cout << std::endl;
+    
+    // CLEANUP
+    
+    std::cout << "Cleaning up... ";
+    freeWaveform(paletteAudio);
+    freeWaveform(templateAudio);
+    std::cout << "\tdone" << std::endl;
     
     return 0;
 }
@@ -65,8 +101,8 @@ int main(int argc, char** argv) {
     if(argc == 1) {
         std::cout << "Usage: " << argv[0] << std::endl;
         return 0;
-    } else if(argc > 1) {
-        return run(argv[1]);
+    } else if(argc > 2) {
+        return run(argv[1], argv[2]);
     }
     
     return 0;

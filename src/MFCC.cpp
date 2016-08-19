@@ -49,7 +49,8 @@ MFCC::~MFCC() {
 MFCC* generateMFCC(
     Waveform inputAudio, 
     const MFCCParams params,
-    bool debugOutput) {
+    bool debugOutput,
+    std::string debugPrefix) {
     
     // Yay compiler optimizations
     const double& frameLengthMilliseconds = params.frameLengthMilliseconds;
@@ -157,7 +158,7 @@ MFCC* generateMFCC(
                 fftwCompleteOutput[windowIndex][windowSample].imag = fftwOutput[windowSample][1];
             }
         }
-        if(debugOutput) writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
+        if(debugOutput) writeFFTWOutputDebug(debugPrefix + "_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
         std::cout << "\tdone" << std::endl;
         
         fftw_destroy_plan(fftwPlan);
@@ -184,7 +185,7 @@ MFCC* generateMFCC(
                 powerEstimates[windowIndex][windowSample] = absValSq / denom;
             }
         }
-        if(debugOutput) writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
+        if(debugOutput) writeGenericHeatOutput(debugPrefix + "_power.png", powerEstimates, numWindows, spectrumLength);
         std::cout << "\tdone" << std::endl;
     }
     
@@ -258,9 +259,9 @@ MFCC* generateMFCC(
                 loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy); // Natural log, please
             }
         }
-        if(debugOutput) writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
+        if(debugOutput) writeGenericHeatOutput(debugPrefix + "_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
         #ifndef NDEBUG
-        if(debugOutput) writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
+        if(debugOutput) writeGenericHeatOutput(debugPrefix + "_energies.png", filterbankEnergies, numWindows, numFilterbanks);
         for(int64_t i = 0; i < numWindows; ++ i) {
             delete[] filterbankEnergies[i];
         }
@@ -301,7 +302,7 @@ MFCC* generateMFCC(
             }
             
         }
-        if(debugOutput) writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
+        if(debugOutput) writeGenericHeatOutput(debugPrefix + "_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
         std::cout << "\tdone" << std::endl;
     }
     for(int64_t i = 0; i < numWindows; ++ i) {

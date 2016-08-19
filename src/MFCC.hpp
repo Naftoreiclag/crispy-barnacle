@@ -50,6 +50,7 @@ struct MFCC {
 MFCC* generateMFCC(
     Waveform inputAudio, 
     const MFCCParams params,
-    bool debugOutput = false);
+    bool debugOutput = false,
+    std::string debugPrefix = "debug");
 
 #endif // MFCC_HPP
