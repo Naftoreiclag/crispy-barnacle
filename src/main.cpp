@@ -68,8 +68,6 @@ MFCC* generateMFCC(
     Waveform inputAudio, 
     const MFCCParams params,
     bool debugOutput = false) {
-        
-    std::cout << "Generating MFCC data for audio... " << std::endl;
     
     // Yay compiler optimizations
     const double& frameLengthMilliseconds = params.frameLengthMilliseconds;
@@ -335,6 +333,7 @@ MFCC* generateMFCC(
 int run(std::string inputAudioFilename) {
     
     std::cout << "Filename is " << inputAudioFilename << std::endl;
+    std::cout << std::endl;
     
     std::cout << "Loading mimic waveform into memory... " << std::endl;
     Waveform inputAudio;
@@ -345,6 +344,7 @@ int run(std::string inputAudioFilename) {
         return -1;
     }
     std::cout << "Done loading mimic waveform" << std::endl;
+    std::cout << std::endl;
     
     MFCCParams params;
     
