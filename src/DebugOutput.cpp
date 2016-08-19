@@ -53,6 +53,9 @@ RGB colorrampSevenHeat(float normalizedIntensity) {
     if(normalizedIntensity < 0.f) {
         return RGB(0.3, 0.0, 0.3);
     }
+    if(normalizedIntensity > 1.f) {
+        return RGB(0.9, 0.0, 0.9);
+    }
     if(normalizedIntensity < 1.f / 255.f) {
         return RGB(0.6, 0.6, 0.6);
     }
