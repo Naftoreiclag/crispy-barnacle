@@ -430,6 +430,7 @@ int run(std::string inputAudioFilename) {
                     int spectrum = (height - pixelY) - 1;
                 
                     double power = mfccs[frame][spectrum];
+                    power = normalized(power, -1, 10);
                     
                     RGB heat = colorrampSevenHeat(power);
                     
