@@ -68,6 +68,8 @@ MFCC* generateMFCC(
     Waveform inputAudio, 
     const MFCCParams params,
     bool debugOutput = false) {
+        
+    std::cout << "Generating MFCC data for audio... " << std::endl;
     
     // Yay compiler optimizations
     const double& frameLengthMilliseconds = params.frameLengthMilliseconds;
@@ -82,14 +84,14 @@ MFCC* generateMFCC(
     int32_t spectrumLength = windowLength / 2;
     int32_t windowStep = (frameStepMilliseconds * inputAudio.mSampleRate) / 1000;
     
-    std::cout << "Window function: Hanning" << std::endl;
-    std::cout << "Window length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
+    std::cout << "\tWindow function: Hanning" << std::endl;
+    std::cout << "\tWindow length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
     if(windowLength < 0) {
         std::cerr << "Fatal error! Length cannot be negative!" << std::endl;
         return NULL;
     }
     
-    std::cout << "Window step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
+    std::cout << "\tWindow step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
     if(windowStep < 1) {
         std::cerr << "Fatal error! Step must be greater than 0!" << std::endl;
         return NULL;
@@ -100,17 +102,17 @@ MFCC* generateMFCC(
     for(int64_t windowIndex = 0; (windowIndex * windowStep) < inputAudio.mNumSamples; ++ windowIndex) {
         numWindows ++;
     }
-    std::cout << "Window count: " << numWindows << std::endl;
+    std::cout << "\tWindow count: " << numWindows << std::endl;
     
-    std::cout << "Filterbank energy count: " << numFilterbanks << std::endl;
-    std::cout << "Mel frequency count:" << numMfccs << std::endl;
+    std::cout << "\tFilterbank energy count: " << numFilterbanks << std::endl;
+    std::cout << "\tMel frequency count:" << numMfccs << std::endl;
     if(numMfccs > numFilterbanks) {
         std::cerr << "Fatal error! Mel frequency count is greater than the number of filterbank energies!" << std::endl;
         return NULL;
     }
     
-    std::cout << "Lower filterbank range: " << filterMinFreq << "hz" << std::endl;
-    std::cout << "Upper filterbank range: " << filterMaxFreq << "hz" << std::endl;
+    std::cout << "\tLower filterbank range: " << filterMinFreq << "hz" << std::endl;
+    std::cout << "\tUpper filterbank range: " << filterMaxFreq << "hz" << std::endl;
     if(filterMinFreq > filterMaxFreq) {
         std::cerr << "Fatal error! Invalid range!" << std::endl;
         return NULL;
@@ -130,16 +132,16 @@ MFCC* generateMFCC(
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
         fftw_complex* fftwOutput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
         
-        std::cout << "Optimizing FFTW... ";
+        std::cout << "\tOptimizing FFTW... ";
         fftw_plan fftwPlan = fftw_plan_dft_1d(windowLength, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
-        std::cout << "done" << std::endl;
+        std::cout << "\tdone" << std::endl;
         
         // Set imaginary components to be zero
         for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
             fftwInput[windowSample][1] = 0;
         }
         
-        std::cout << "Performing DFT... ";
+        std::cout << "\tPerforming DFT... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             
             int64_t beginningSample = windowIndex * windowStep;
@@ -176,7 +178,7 @@ MFCC* generateMFCC(
             }
         }
         if(debugOutput) writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
-        std::cout << "done" << std::endl;
+        std::cout << "\tdone" << std::endl;
         
         fftw_destroy_plan(fftwPlan);
         fftw_free(fftwOutput);
@@ -189,7 +191,7 @@ MFCC* generateMFCC(
         powerEstimates[i] = new double[spectrumLength];
     }
     {
-        std::cout << "Computing power estimates... ";
+        std::cout << "\tComputing power estimates... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             for(int64_t windowSample = 0; windowSample < spectrumLength; ++ windowSample) {
                 
@@ -203,7 +205,7 @@ MFCC* generateMFCC(
             }
         }
         if(debugOutput) writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
-        std::cout << "done" << std::endl;
+        std::cout << "\tdone" << std::endl;
     }
     
     for(int64_t i = 0; i < numWindows; ++ i) {
@@ -217,7 +219,7 @@ MFCC* generateMFCC(
         double filterMaxFreqMels = melScale(filterMaxFreq);
         double filterMinFreqMels = melScale(filterMinFreq);
         
-        std::cout << "Mel filterbank (hz): ";
+        std::cout << "\tMel filterbank (hz): ";
         double melsStep = (filterMaxFreqMels - filterMinFreqMels) / (numFilterbanks + 1);
         for(int32_t i = 0; i < numFilterbanks + 2; ++ i) {
             double mels = melsStep * i + filterMinFreqMels;
@@ -245,7 +247,7 @@ MFCC* generateMFCC(
             filterbankEnergies[i] = new double[numFilterbanks];
         }
         #endif // !NDEBUG
-        std::cout << "Computing filterbank energies... ";
+        std::cout << "\tComputing filterbank energies... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             for(int32_t filterbankIndex = 0; filterbankIndex < numFilterbanks; ++ filterbankIndex) {
                 double filterBegin = filterbank[filterbankIndex];
@@ -285,7 +287,7 @@ MFCC* generateMFCC(
         delete[] filterbankEnergies;
         #endif // !NDEBUG
         
-        std::cout << "done" << std::endl;
+        std::cout << "\tdone" << std::endl;
         
     }
     for(int64_t i = 0; i < numWindows; ++ i) {
@@ -301,7 +303,7 @@ MFCC* generateMFCC(
     }
     {
         
-        std::cout << "Computing mel frequency cepstral coefficients... ";
+        std::cout << "\tComputing mel frequency cepstral coefficients... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             for(int32_t mfccIndex = 0; mfccIndex < numMfccs; ++ mfccIndex) {
                 
@@ -320,7 +322,7 @@ MFCC* generateMFCC(
             
         }
         if(debugOutput) writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
-        std::cout << "done" << std::endl;
+        std::cout << "\tdone" << std::endl;
     }
     for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] loggedFilterbankEnergies[i];
@@ -334,6 +336,7 @@ int run(std::string inputAudioFilename) {
     
     std::cout << "Filename is " << inputAudioFilename << std::endl;
     
+    std::cout << "Loading mimic waveform into memory... " << std::endl;
     Waveform inputAudio;
     int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
     
@@ -341,6 +344,7 @@ int run(std::string inputAudioFilename) {
         std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
         return -1;
     }
+    std::cout << "Done loading mimic waveform" << std::endl;
     
     MFCCParams params;
     
@@ -351,7 +355,13 @@ int run(std::string inputAudioFilename) {
     params.numFilterbanks = 26;
     params.numMfccs = 12;
     
+    std::cout << "Generating mimic MFCC... " << std::endl;
     MFCC* mimicMFCCs = generateMFCC(inputAudio, params, true);
+    if(!mimicMFCCs) {
+        std::cerr << "Fatal error! Failed to generate MFCCs for mimic data!" << std::endl;
+        return -1;
+    }
+    std::cout << "Done generating mimic MFCC" << std::endl;
     
     return 0;
 }
