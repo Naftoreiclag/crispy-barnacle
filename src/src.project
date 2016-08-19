@@ -2,11 +2,20 @@
 <CodeLite_Project Name="Main" InternalType="Console">
   <Plugins>
     <Plugin Name="qmake">
-      <![CDATA[00010001N0005Debug000000000000]]>
+      <![CDATA[00020001N0005Debug0000000000000001N0007Release000000000000]]>
     </Plugin>
     <Plugin Name="CMakePlugin">
       <![CDATA[[{
   "name": "Debug",
+  "enabled": false,
+  "buildDirectory": "build",
+  "sourceDirectory": "$(ProjectPath)",
+  "generator": "",
+  "buildType": "",
+  "arguments": [],
+  "parentProject": ""
+ }, {
+  "name": "Release",
   "enabled": false,
   "buildDirectory": "build",
   "sourceDirectory": "$(ProjectPath)",
@@ -100,13 +109,32 @@ FLAC_HOME=../depend/mingw-w64/flac-1.3.1]]>
     <Configuration Name="Release" CompilerType="MinGW ( mingw64 )" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="-O2;-Wall" C_Options="-O2;-Wall" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
+        <IncludePath Value="$(FFTW_HOME)/include"/>
+        <IncludePath Value="$(OGG_HOME)/include"/>
+        <IncludePath Value="$(VORBIS_HOME)/include"/>
+        <IncludePath Value="$(FLAC_HOME)/include"/>
+        <IncludePath Value="../depend/header/stb"/>
         <Preprocessor Value="NDEBUG"/>
       </Compiler>
-      <Linker Options="" Required="yes"/>
+      <Linker Options="" Required="yes">
+        <LibraryPath Value="$(FFTW_HOME)/lib"/>
+        <LibraryPath Value="$(OGG_HOME)/lib"/>
+        <LibraryPath Value="$(VORBIS_HOME)/lib"/>
+        <LibraryPath Value="$(FLAC_HOME)/lib"/>
+        <Library Value="fftw3"/>
+        <Library Value="ogg"/>
+        <Library Value="vorbis"/>
+        <Library Value="vorbisenc"/>
+        <Library Value="vorbisfile"/>
+        <Library Value="FLAC"/>
+      </Linker>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="./Release" Command="./$(ProjectName)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="../bin/Debug" Command="./$(ProjectName)" CommandArguments="../../example/waveform/Wonderland.flac" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
-        <![CDATA[]]>
+        <![CDATA[FFTW_HOME=../depend/mingw-w64/fftw-3.3.5
+OGG_HOME=../depend/mingw-w64/ogg-1.3.2
+VORBIS_HOME=../depend/mingw-w64/vorbis-1.3.5
+FLAC_HOME=../depend/mingw-w64/flac-1.3.1]]>
       </Environment>
       <Debugger IsRemote="no" RemoteHostName="" RemoteHostPort="" DebuggerPath="" IsExtended="no">
         <DebuggerSearchPaths/>
@@ -114,7 +142,12 @@ FLAC_HOME=../depend/mingw-w64/flac-1.3.1]]>
         <StartupCommands/>
       </Debugger>
       <PreBuild/>
-      <PostBuild/>
+      <PostBuild>
+        <Command Enabled="yes">cp $(FLAC_HOME)/bin/*.dll $(IntermediateDirectory)</Command>
+        <Command Enabled="yes">cp $(OGG_HOME)/bin/*.dll $(IntermediateDirectory)</Command>
+        <Command Enabled="yes">cp $(VORBIS_HOME)/bin/*.dll $(IntermediateDirectory)</Command>
+        <Command Enabled="yes"/>
+      </PostBuild>
       <CustomBuild Enabled="no">
         <RebuildCommand/>
         <CleanCommand/>
