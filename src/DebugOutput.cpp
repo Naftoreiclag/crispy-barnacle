@@ -17,6 +17,16 @@
 
 #include "DebugOutput.hpp"
 
+double normalized(double value, double min, double max) {
+    return (value - min) / (max - min);
+}
+double normalizedClamp(double value, double min, double max) {
+    double asdf = normalized(value, min, max);
+    if(asdf < 0) asdf = 0;
+    if(asdf > 1) asdf = 1;
+    return asdf;
+}
+
 RGB::RGB(float ar, float ag, float ab)
 : r(ar)
 , g(ag)
@@ -40,8 +50,11 @@ unsigned char RGB::BU8() {
 }
 
 RGB colorrampSevenHeat(float normalizedIntensity) {
+    if(normalizedIntensity < 0.f) {
+        return RGB(0.3, 0.0, 0.0);
+    }
     if(normalizedIntensity < 1.f / 255.f) {
-        return RGB(0.5, 0.5, 0.5);
+        return RGB(0.6, 0.6, 0.6);
     }
     
     for(int i = 1; i < 6; ++ i) {

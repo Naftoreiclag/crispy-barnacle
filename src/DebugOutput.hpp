@@ -34,4 +34,7 @@ RGB colorrampSevenHeat(float normalizedIntensity);
 
 RGB interp(RGB a, RGB b, float amnt);
 
+double normalized(double value, double min, double max);
+double normalizedClamp(double value, double min, double max);
+
 #endif // DEBUGOUTPUT_HPP

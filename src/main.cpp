@@ -248,7 +248,6 @@ int run(std::string inputAudioFilename) {
             }
         }
         
-        
         std::cout << "done" << std::endl;
     } 
     
@@ -269,12 +268,6 @@ int run(std::string inputAudioFilename) {
                     
                     {
                         double power = powerEstimates[frame][spectrum];
-                        
-                        if(power > 1.0) {
-                            power = 1.0;
-                        } else if(power < 0.0) {
-                            power = 0.0;
-                        }
                         
                         RGB heat = colorrampSevenHeat(power);
                         
@@ -301,12 +294,6 @@ int run(std::string inputAudioFilename) {
                     {
                         double power = powerEstimates[frame][spectrum];
                         power = std::sqrt(power);
-                        
-                        if(power > 1.0) {
-                            power = 1.0;
-                        } else if(power < 0.0) {
-                            power = 0.0;
-                        }
                         
                         RGB heat = colorrampSevenHeat(power);
                         
@@ -372,12 +359,6 @@ int run(std::string inputAudioFilename) {
                     {
                         double power = filterbankEnergies[frame][spectrum];
                         
-                        if(power > 1.0) {
-                            power = 1.0;
-                        } else if(power < 0.0) {
-                            power = 0.0;
-                        }
-                        
                         RGB heat = colorrampSevenHeat(power);
                         
                         imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
@@ -402,12 +383,7 @@ int run(std::string inputAudioFilename) {
                     
                     {
                         double power = loggedFilterbankEnergies[frame][spectrum];
-                        
-                        if(power > 1.0) {
-                            power = 1.0;
-                        } else if(power < 0.0) {
-                            power = 0.0;
-                        }
+                        power = normalized(power, -10, 1);
                         
                         RGB heat = colorrampSevenHeat(power);
                         
@@ -423,7 +399,7 @@ int run(std::string inputAudioFilename) {
         std::cout << "done" << std::endl;
     }
     
-    std::cout << "Cleaning up... " << std::endl;
+    std::cout << "Cleaning up... ";
     
     for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] fftwCompleteOutput[i];
