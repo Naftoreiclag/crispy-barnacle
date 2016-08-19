@@ -212,13 +212,17 @@ int run(std::string inputAudioFilename) {
     }
     
     //
-    double** filterbankEnergies = new double*[numWindows];
     double** loggedFilterbankEnergies = new double*[numWindows];
     for(int64_t i = 0; i < numWindows; ++ i) {
-        filterbankEnergies[i] = new double[numFilterbanks];
         loggedFilterbankEnergies[i] = new double[numFilterbanks];
     }
     {
+        #ifndef NDEBUG
+        double** filterbankEnergies = new double*[numWindows];
+        for(int64_t i = 0; i < numWindows; ++ i) {
+            filterbankEnergies[i] = new double[numFilterbanks];
+        }
+        #endif // !NDEBUG
         std::cout << "Computing filterbank energies... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
             for(int32_t filterbankIndex = 0; filterbankIndex < numFilterbanks; ++ filterbankIndex) {
@@ -244,14 +248,23 @@ int run(std::string inputAudioFilename) {
                     
                     totalEnergy += powerEstimates[windowIndex][windowSample] * filterY;
                 }
-                
+                #ifndef NDEBUG
                 filterbankEnergies[windowIndex][filterbankIndex] = totalEnergy;
+                #endif // !NDEBUG
                 loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy); // Natural log, please
             }
         }
-        writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
         writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
+        #ifndef NDEBUG
+        writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
+        for(int64_t i = 0; i < numWindows; ++ i) {
+            delete[] filterbankEnergies[i];
+        }
+        delete[] filterbankEnergies;
+        #endif // !NDEBUG
+        
         std::cout << "done" << std::endl;
+        
     }
     for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] powerEstimates[i];
@@ -285,7 +298,10 @@ int run(std::string inputAudioFilename) {
         writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
         std::cout << "done" << std::endl;
     }
-    
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        delete[] loggedFilterbankEnergies[i];
+    }
+    delete[] loggedFilterbankEnergies;
     for(int64_t i = 0; i < numWindows; ++ i) {
         delete[] mfccs[i];
     }
