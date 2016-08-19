@@ -274,12 +274,15 @@ int run(std::string inputAudioFilename) {
         std::cout << "done" << std::endl;
     }
     
+    
     // Debug output power estimates as image
     {
+        int maxDebugWidth = 2048;
         std::cout << "Writing debug images... ";
         // Power estimate
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = spectrumLength;
             char imageData[width * height * 3];
             
@@ -305,6 +308,7 @@ int run(std::string inputAudioFilename) {
         // Power estimate sqrt
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = spectrumLength;
             char imageData[width * height * 3];
             
@@ -331,6 +335,7 @@ int run(std::string inputAudioFilename) {
         // FFTW output
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = spectrumLength;
             char imageData[width * height * 3];
             
@@ -369,6 +374,7 @@ int run(std::string inputAudioFilename) {
         // Mel filterbank energies
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = numFilterbanks;
             char imageData[width * height * 3];
             
@@ -394,6 +400,7 @@ int run(std::string inputAudioFilename) {
         // Mel filterbank energies (log)
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = numFilterbanks;
             char imageData[width * height * 3];
             
@@ -420,6 +427,7 @@ int run(std::string inputAudioFilename) {
         // MFCC
         {
             int width = numWindows;
+            if(width > maxDebugWidth) width = maxDebugWidth;
             int height = numMfccs;
             char imageData[width * height * 3];
             

@@ -3,6 +3,7 @@
 workspace.tags
 
 example/*
+example/bigwaveform*
 
 *.mk
 Makefile
