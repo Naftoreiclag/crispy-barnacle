@@ -17,6 +17,7 @@
 
 #include "WaveformIO.hpp"
 
+#include <fstream>
 #include <iostream>
 #include <cmath>
 
@@ -273,6 +274,114 @@ int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal) {
     return 0;
 }
 
+int32_t writeWaveform(std::string filename, Waveform waveform) {
+    int errorCode;
+    
+    // Write intialization
+    vorbis_info outputVorbisInfo;
+    vorbis_info_init(&outputVorbisInfo);
+    int outputNumChannels = 1;
+    errorCode = vorbis_encode_init_vbr(&outputVorbisInfo, outputNumChannels, waveform.mSampleRate, 1.0);
+    if(errorCode) {
+        std::cout << "\tFailed to initialize encoding for VBR!" << std::endl;
+        return -1;
+    }
+
+    vorbis_dsp_state outputVorbisDspState;
+    errorCode = vorbis_analysis_init(&outputVorbisDspState, &outputVorbisInfo);
+    if(errorCode) {
+        std::cout << "\tFailed to initialize vorbis dsp state!" << std::endl;
+        return -1;
+    }
+
+    //
+    vorbis_block outputVorbisBlock;
+    vorbis_block_init(&outputVorbisDspState, &outputVorbisBlock);
+
+    int cerealNumber = 1337; // Why?
+
+    ogg_stream_state outputOggStream;
+    ogg_stream_init(&outputOggStream, cerealNumber);
+
+    ogg_page outputOggPage;
+
+    std::ofstream outputData(filename.c_str(), std::ios::out | std::ios::binary);
+
+    {
+        ogg_packet streamIdentity;
+        ogg_packet serializedMetadata;
+        ogg_packet codebooks;
+        
+        vorbis_comment outputVorbisMetadata;
+        vorbis_comment_init(&outputVorbisMetadata);
+        vorbis_analysis_headerout(&outputVorbisDspState, &outputVorbisMetadata, &streamIdentity, &serializedMetadata, &codebooks);
+        
+        ogg_stream_packetin(&outputOggStream, &streamIdentity);
+        ogg_stream_packetin(&outputOggStream, &serializedMetadata);
+        ogg_stream_packetin(&outputOggStream, &codebooks);
+        
+        while(true) {
+            int ret = ogg_stream_flush(&outputOggStream, &outputOggPage);
+            if(ret == 0) {
+                break;
+            }
+            outputData.write(reinterpret_cast<char*>(outputOggPage.header), outputOggPage.header_len);
+            outputData.write(reinterpret_cast<char*>(outputOggPage.body), outputOggPage.body_len);
+        }
+        vorbis_comment_clear(&outputVorbisMetadata);
+    }
+    
+    int64_t remainingSamples = waveform.mNumSamples;
+    int64_t writtenSamples = 0;
+
+    while(remainingSamples) {
+        // Get a buffer which we must write to
+        int numSamplesWrite = remainingSamples > 4096 ? 4096 : remainingSamples;
+        
+        float** outputBuffers = vorbis_analysis_buffer(&outputVorbisDspState, numSamplesWrite);
+        
+        for(int i = 0; i < numSamplesWrite; ++ i) {
+            outputBuffers[0][i] = waveform.mFloatSamples[writtenSamples + i];
+        }
+        writtenSamples += numSamplesWrite;
+        remainingSamples -= numSamplesWrite;
+        
+        // Tell vorbis that we are done writing to the buffer gained previously
+        // (Necessary because we technically could have submitted less data than was requested,
+        // and also because we need to notify vorbis that we are done writing for now)
+        vorbis_analysis_wrote(&outputVorbisDspState, numSamplesWrite);
+        
+        //
+        while(vorbis_analysis_blockout(&outputVorbisDspState, &outputVorbisBlock) == 1) {
+            vorbis_analysis(&outputVorbisBlock, NULL);
+            vorbis_bitrate_addblock(&outputVorbisBlock);
+            
+            ogg_packet outputOggPacket;
+            while(vorbis_bitrate_flushpacket(&outputVorbisDspState, &outputOggPacket)) {
+                ogg_stream_packetin(&outputOggStream, &outputOggPacket);
+                while(true) {
+                    int ret = ogg_stream_pageout(&outputOggStream, &outputOggPage);
+                    if(ret == 0) {
+                        break;
+                    }
+                    outputData.write(reinterpret_cast<char*>(outputOggPage.header), outputOggPage.header_len);
+                    outputData.write(reinterpret_cast<char*>(outputOggPage.body), outputOggPage.body_len);
+                }
+            }
+        }
+        
+        
+        
+    }
+    vorbis_analysis_wrote(&outputVorbisDspState, 0);
+
+    // Writing cleanup
+    ogg_stream_clear(&outputOggStream);
+    vorbis_block_clear(&outputVorbisBlock);
+    vorbis_dsp_clear(&outputVorbisDspState);
+    vorbis_info_clear(&outputVorbisInfo);
+    return 0;
+}
 // Delete a waveform from memory
 void freeWaveform(Waveform& wavefrom) {
     delete[] wavefrom.mOriginalSamples;

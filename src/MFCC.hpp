@@ -52,7 +52,7 @@ double similarityIndex(MFCC* a, int64_t aw, MFCC* b, int64_t bw);
 #ifdef NDEBUG
 #define debugMostSimilarSamples(...)
 #else
-void debugMostSimilarSamples(MFCC* templat, MFCC* palette);
+void debugMostSimilarSamples(MFCC* templat, MFCC* palette, Waveform waveform);
 #endif
 
 MFCC* generateMFCC(

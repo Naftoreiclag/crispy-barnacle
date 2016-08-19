@@ -86,6 +86,11 @@ int run(std::string paletteAudioFilename, std::string templatAudioFilename) {
     std::cout << "Done generating templat MFCC" << std::endl;
     std::cout << std::endl;
     
+    // DEBUG
+    std::cout << "Analyzing... " << std::endl;
+    debugMostSimilarSamples(templatMFCCs, paletteMFCCs, paletteAudio);
+    std::cout << "Done" << std::endl;
+    
     // CLEANUP
     
     std::cout << "Cleaning up... ";
@@ -93,8 +98,6 @@ int run(std::string paletteAudioFilename, std::string templatAudioFilename) {
     freeWaveform(templatAudio);
     std::cout << "\tdone" << std::endl;
     
-    // DEBUG
-    debugMostSimilarSamples(templatMFCCs, paletteMFCCs);
     
     return 0;
 }

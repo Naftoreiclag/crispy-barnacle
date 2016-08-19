@@ -65,7 +65,7 @@ double similarityIndex(MFCC* a, int64_t aw, MFCC* b, int64_t bw) {
     return sqrt(sum);
 }
 
-void debugMostSimilarSamples(MFCC* templat, MFCC* palette) {
+void debugMostSimilarSamples(MFCC* templat, MFCC* palette, Waveform paletteAudio) {
     assert(palette->numMfccs > 0);
     int32_t* closestMatches = new int32_t[templat->numWindows];
     for(int64_t windowIndex = 0; windowIndex < templat->numWindows; ++ windowIndex) {
@@ -82,6 +82,39 @@ void debugMostSimilarSamples(MFCC* templat, MFCC* palette) {
         }
         
         closestMatches[windowIndex] = bestPaletteIndex;
+    }
+    
+    {
+        assert(palette->params.frameStepMilliseconds < palette->params.frameLengthMilliseconds);
+        
+        
+        Waveform mixture;
+        
+        int32_t windowLength = (palette->params.frameLengthMilliseconds * paletteAudio.mSampleRate) / 1000;
+        int32_t windowStep = (palette->params.frameStepMilliseconds * paletteAudio.mSampleRate) / 1000;
+        
+        mixture.mNumSamples = templat->numWindows * windowStep + windowLength;
+        mixture.mFloatSamples = new double[mixture.mNumSamples];
+        for(int64_t i = 0; i < mixture.mNumSamples; ++ i) {
+            mixture.mFloatSamples[i] = 0;
+        }
+        mixture.mSampleRate = paletteAudio.mSampleRate;
+        
+        for(int64_t windowIndex = 0; windowIndex < templat->numWindows; ++ windowIndex) {
+            for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
+                // Apply hanning window
+                
+                // Hooray for compiler optimizations
+                double tau = 6.28318530717958647692528677;
+                double numerator = tau * windowSample;
+                double denominator = windowLength - 1;
+                double hanning = 0.5 * (1.0 - std::cos(numerator / denominator));
+                mixture.mFloatSamples[windowIndex * windowStep + windowSample] += 
+                    hanning * paletteAudio.mFloatSamples[closestMatches[windowIndex] * windowStep + windowSample];
+            }
+        }
+        
+        writeWaveform("closest_matches.ogg", mixture);
     }
     
     {

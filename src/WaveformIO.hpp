@@ -46,6 +46,9 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal);
 // Delete a waveform from memory
 void freeWaveform(Waveform& wavefrom);
 
+// Writes a waveform as ogg-vorbis
+int32_t writeWaveform(std::string filename, Waveform waveform);
+
 // Internal
 int32_t loadWaveformAsOggVorbis(std::string filename, Waveform& returnVal);
 int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal);
