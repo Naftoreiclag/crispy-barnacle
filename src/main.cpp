@@ -98,27 +98,16 @@ int run(std::string inputAudioFilename) {
         return -1;
     }
     
-    std::cout << "Allocating additional memory... ";
     // The frequency represented by fftwCompleteOutput[i][n] in hertz is equal to:
     // freq = n * inputAudio.mSampleRate / windowLength
     // Inverse is approximated by:
     // bin = floor((freq * (windowLength + 1)) / inputAudio.mSampleRate)
-    double** powerEstimates = new double*[numWindows];
-    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
-    double** filterbankEnergies = new double*[numWindows];
-    double** loggedFilterbankEnergies = new double*[numWindows];
-    double** mfccs = new double*[numWindows];
-    for(int64_t i = 0; i < numWindows; ++ i) {
-        powerEstimates[i] = new double[spectrumLength];
-        fftwCompleteOutput[i] = new ComplexNumber[windowLength];
-        filterbankEnergies[i] = new double[numFilterbanks];
-        loggedFilterbankEnergies[i] = new double[numFilterbanks];
-        mfccs[i] = new double[numMfccs];
-    }
-    double* filterbank = new double[numFilterbanks + 2];
-    std::cout << "done" << std::endl;
-    
+
     // FFTW transform
+    ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        fftwCompleteOutput[i] = new ComplexNumber[windowLength];
+    }
     {
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
         fftw_complex* fftwOutput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
@@ -177,6 +166,10 @@ int run(std::string inputAudioFilename) {
     }
     
     // Power estmates
+    double** powerEstimates = new double*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        powerEstimates[i] = new double[spectrumLength];
+    }
     {
         std::cout << "Computing power estimates... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
@@ -195,6 +188,7 @@ int run(std::string inputAudioFilename) {
     }
     
     // Mel filterbank
+    double* filterbank = new double[numFilterbanks + 2];
     {
         double filterMaxFreqMels = melScale(filterMaxFreq);
         double filterMinFreqMels = melScale(filterMinFreq);
@@ -216,6 +210,12 @@ int run(std::string inputAudioFilename) {
     }
     
     //
+    double** filterbankEnergies = new double*[numWindows];
+    double** loggedFilterbankEnergies = new double*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        filterbankEnergies[i] = new double[numFilterbanks];
+        loggedFilterbankEnergies[i] = new double[numFilterbanks];
+    }
     {
         std::cout << "Computing filterbank energies... ";
         for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
@@ -252,6 +252,10 @@ int run(std::string inputAudioFilename) {
     }
     
     // MFCC (Discrete cosine transform and tossing out high-frequency data)
+    double** mfccs = new double*[numWindows];
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        mfccs[i] = new double[numMfccs];
+    }
     {
         
         std::cout << "Computing mel frequency cepstral coefficients... ";
@@ -438,7 +442,7 @@ int run(std::string inputAudioFilename) {
                     int spectrum = (height - pixelY) - 1;
                 
                     double power = mfccs[frame][spectrum];
-                    power = normalized(power, -1, 10);
+                    power = normalized(power, -4, 18);
                     
                     RGB heat = colorrampSevenHeat(power);
                     
