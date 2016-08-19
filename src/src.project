@@ -70,7 +70,7 @@
         <Library Value="FLAC"/>
       </Linker>
       <ResourceCompiler Options="" Required="no"/>
-      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="../bin/Debug" Command="./$(ProjectName)" CommandArguments="../../example/waveform/Wonderland.flac ../../example/waveform/WonderlandDeep.flac" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="../bin/Debug" Command="./$(ProjectName)" CommandArguments="../../example/waveform/wonderland_poem.flac ../../example/waveform/wonderland_curious.flac" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[FFTW_HOME=../depend/mingw-w64/fftw-3.3.5
 OGG_HOME=../depend/mingw-w64/ogg-1.3.2

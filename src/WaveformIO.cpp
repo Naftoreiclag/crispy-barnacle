@@ -18,6 +18,7 @@
 #include "WaveformIO.hpp"
 
 #include <iostream>
+#include <cmath>
 
 #include "vorbis/vorbisfile.h"
 #include "vorbis/vorbisenc.h"
@@ -74,7 +75,10 @@ int32_t loadWaveform(std::string filename, Waveform& returnVal) {
         std::cout << "\tSample rate: " << returnVal.mSampleRate << std::endl;
         std::cout << "\tSample size: " << (returnVal.mSampleSize * 8) << " bits" << std::endl;
         std::cout << "\tSample count: " << returnVal.mNumSamples << std::endl;
-        std::cout << "\tMemory allocated: " << ((sizeof(int64_t) + sizeof(double)) * returnVal.mNumSamples) << " bytes" << std::endl;
+        int64_t allocByte = (sizeof(int64_t) + sizeof(double)) * returnVal.mNumSamples;
+        double mbsize = 1 << 20;
+        double allocMB = std::floor(100.0 * allocByte / mbsize) / 100.0;
+        std::cout << "\tMemory allocated: " << allocByte << " bytes, (~ " << allocMB << "MB)" << std::endl;
     }
     
     return errorVal;
@@ -259,7 +263,7 @@ int32_t loadWaveformAsFLAC(std::string filename, Waveform& returnVal) {
     
     FLAC__stream_decoder_process_until_end_of_stream(inputFlacDecoder);
     
-    std::cout << "\tFLAC decoder status: " << FLAC__StreamDecoderStateString[FLAC__stream_decoder_get_state(inputFlacDecoder)] << std::endl;
+    std::cout << "\tFLAC decoder final status: " << FLAC__StreamDecoderStateString[FLAC__stream_decoder_get_state(inputFlacDecoder)] << std::endl;
     
     // Reading cleanup
     FLAC__stream_decoder_delete(inputFlacDecoder);
