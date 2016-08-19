@@ -34,6 +34,15 @@ double invMelScale(double mels) {
     return 700 * (std::exp(mels / 1127) - 1);
 }
 
+struct MFCCParams {
+    double frameLengthMilliseconds = 25;
+    double frameStepMilliseconds = 10;
+    double filterMinFreq = 300;
+    double filterMaxFreq = 8000;
+    int32_t numFilterbanks = 26;
+    int32_t numMfccs = 12;
+};
+
 struct MFCC {
     MFCC(double** mfccs, int32_t windowCount, int32_t mfccCount)
     : data(mfccs)
@@ -47,21 +56,26 @@ struct MFCC {
         delete[] data;
     }
     
+    double** data;
+    
     int64_t numWindows;
     int32_t numMfccs;
     
-    double** data;
+    MFCCParams params;
 };
 
 MFCC* generateMFCC(
     Waveform inputAudio, 
-    double frameLengthMilliseconds, 
-    double frameStepMilliseconds, 
-    double filterMinFreq, 
-    double filterMaxFreq, 
-    int32_t numFilterbanks, 
-    int32_t numMfccs,
+    const MFCCParams params,
     bool debugOutput = false) {
+    
+    // Yay compiler optimizations
+    const double& frameLengthMilliseconds = params.frameLengthMilliseconds;
+    const double& frameStepMilliseconds = params.frameStepMilliseconds;
+    const double& filterMinFreq = params.filterMinFreq;
+    const double& filterMaxFreq = params.filterMaxFreq;
+    const int32_t& numFilterbanks = params.numFilterbanks;
+    const int32_t& numMfccs = params.numMfccs;
     
     // (Rounded toward zero)
     int32_t windowLength = (frameLengthMilliseconds * inputAudio.mSampleRate) / 1000;
@@ -161,7 +175,7 @@ MFCC* generateMFCC(
                 fftwCompleteOutput[windowIndex][windowSample].imag = fftwOutput[windowSample][1];
             }
         }
-        writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
+        if(debugOutput) writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
         
         fftw_destroy_plan(fftwPlan);
@@ -188,7 +202,7 @@ MFCC* generateMFCC(
                 powerEstimates[windowIndex][windowSample] = absValSq / denom;
             }
         }
-        writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
+        if(debugOutput) writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
     }
     
@@ -262,9 +276,9 @@ MFCC* generateMFCC(
                 loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy); // Natural log, please
             }
         }
-        writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
+        if(debugOutput) writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
         #ifndef NDEBUG
-        writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
+        if(debugOutput) writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
         for(int64_t i = 0; i < numWindows; ++ i) {
             delete[] filterbankEnergies[i];
         }
@@ -305,7 +319,7 @@ MFCC* generateMFCC(
             }
             
         }
-        writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
+        if(debugOutput) writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
         std::cout << "done" << std::endl;
     }
     for(int64_t i = 0; i < numWindows; ++ i) {
@@ -328,15 +342,16 @@ int run(std::string inputAudioFilename) {
         return -1;
     }
     
-    double frameLengthMilliseconds = 25;
-    double frameStepMilliseconds = 10;
-    double filterMinFreq = 300;
-    double filterMaxFreq = 8000;
-    int32_t numFilterbanks = 26;
-    int32_t numMfccs = 12;
+    MFCCParams params;
     
-    MFCC* foo = generateMFCC(inputAudio, frameLengthMilliseconds, frameStepMilliseconds, filterMinFreq, filterMaxFreq, numFilterbanks, numMfccs);
-    delete foo;
+    params.frameLengthMilliseconds = 25;
+    params.frameStepMilliseconds = 10;
+    params.filterMinFreq = 300;
+    params.filterMaxFreq = 8000;
+    params.numFilterbanks = 26;
+    params.numMfccs = 12;
+    
+    MFCC* mimicMFCCs = generateMFCC(inputAudio, params, true);
     
     return 0;
 }
