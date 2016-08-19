@@ -82,9 +82,9 @@ int run(std::string inputAudioFilename) {
     
     int32_t numFilterbanks = 26;
     std::cout << "Filterbank energy count: " << numFilterbanks << std::endl;
-    int32_t numMelFrequencies = 12;
-    std::cout << "Mel frequency count:" << numMelFrequencies << std::endl;
-    if(numMelFrequencies > numFilterbanks) {
+    int32_t numMfccs = 12;
+    std::cout << "Mel frequency count:" << numMfccs << std::endl;
+    if(numMfccs > numFilterbanks) {
         std::cerr << "Fatal error! Mel frequency count is greater than the number of filterbank energies!" << std::endl;
         return -1;
     }
@@ -113,7 +113,7 @@ int run(std::string inputAudioFilename) {
         fftwCompleteOutput[i] = new ComplexNumber[windowLength];
         filterbankEnergies[i] = new double[numFilterbanks];
         loggedFilterbankEnergies[i] = new double[numFilterbanks];
-        mfccs[i] = new double[numMelFrequencies];
+        mfccs[i] = new double[numMfccs];
     }
     double* filterbank = new double[numFilterbanks + 2];
     std::cout << "done" << std::endl;
@@ -244,12 +244,35 @@ int run(std::string inputAudioFilename) {
                 }
                 
                 filterbankEnergies[windowIndex][filterbankIndex] = totalEnergy;
-                loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy);
+                loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy); // Natural log, please
             }
         }
         
         std::cout << "done" << std::endl;
-    } 
+    }
+    
+    // MFCC (Discrete cosine transform and tossing out high-frequency data)
+    {
+        
+        std::cout << "Computing mel frequency cepstral coefficients... ";
+        for(int64_t windowIndex = 0; windowIndex < numWindows; ++ windowIndex) {
+            for(int32_t mfccIndex = 0; mfccIndex < numMfccs; ++ mfccIndex) {
+                
+                double total = 0;
+                for(int32_t filterbankIndex = 0; filterbankIndex < numFilterbanks; ++ filterbankIndex) {
+                    total += loggedFilterbankEnergies[windowIndex][filterbankIndex] * std::cos((3.141592653589793 / numFilterbanks) * (filterbankIndex + 0.5) * mfccIndex);
+                }
+                
+                // May or may not be needed here
+                if(mfccIndex == 0) total *= std::sqrt(0.5);
+                total *= std::sqrt(2.0 / numFilterbanks);
+                
+                mfccs[windowIndex][mfccIndex] = total;
+            }
+        }
+    
+        std::cout << "done" << std::endl;
+    }
     
     // Debug output power estimates as image
     {
@@ -260,11 +283,11 @@ int run(std::string inputAudioFilename) {
             int height = spectrumLength;
             char imageData[width * height * 3];
             
-            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
                 for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
                     int frame = pixelX;
-                    int spectrum = height - pixelY;
+                    int spectrum = (height - pixelY) - 1;
                     
                     {
                         double power = powerEstimates[frame][spectrum];
@@ -285,11 +308,11 @@ int run(std::string inputAudioFilename) {
             int height = spectrumLength;
             char imageData[width * height * 3];
             
-            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
                 for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
                     int frame = pixelX;
-                    int spectrum = height - pixelY;
+                    int spectrum = (height - pixelY) - 1;
                     
                     {
                         double power = powerEstimates[frame][spectrum];
@@ -311,11 +334,11 @@ int run(std::string inputAudioFilename) {
             int height = spectrumLength;
             char imageData[width * height * 3];
             
-            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
                 for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
                     int frame = pixelX;
-                    int spectrum = height - pixelY;
+                    int spectrum = (height - pixelY) - 1;
                     
                     double real = fftwCompleteOutput[frame][spectrum].real;
                     double imag = fftwCompleteOutput[frame][spectrum].imag;
@@ -343,18 +366,17 @@ int run(std::string inputAudioFilename) {
             
             stbi_write_png("debug_fftw_output.png", width, height, 3, imageData, width * 3);
         }
-        
         // Mel filterbank energies
         {
             int width = numWindows;
             int height = numFilterbanks;
             char imageData[width * height * 3];
             
-            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
                 for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
                     int frame = pixelX;
-                    int spectrum = height - pixelY;
+                    int spectrum = (height - pixelY) - 1;
                     
                     {
                         double power = filterbankEnergies[frame][spectrum];
@@ -375,11 +397,11 @@ int run(std::string inputAudioFilename) {
             int height = numFilterbanks;
             char imageData[width * height * 3];
             
-            for(int pixelY = height - 1; pixelY >= 0; -- pixelY) {
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
                 for(int pixelX = 0; pixelX < width; ++ pixelX) {
                     
                     int frame = pixelX;
-                    int spectrum = height - pixelY;
+                    int spectrum = (height - pixelY) - 1;
                     
                     {
                         double power = loggedFilterbankEnergies[frame][spectrum];
@@ -395,7 +417,29 @@ int run(std::string inputAudioFilename) {
             }
             stbi_write_png("debug_filterbank_energies_log.png", width, height, 3, imageData, width * 3);
         }
-        
+        // MFCC
+        {
+            int width = numWindows;
+            int height = numMfccs;
+            char imageData[width * height * 3];
+            
+            for(int pixelY = 0; pixelY < height; ++ pixelY) {
+                for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                    
+                    int frame = pixelX;
+                    int spectrum = (height - pixelY) - 1;
+                
+                    double power = mfccs[frame][spectrum];
+                    
+                    RGB heat = colorrampSevenHeat(power);
+                    
+                    imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                    imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                    imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                }
+            }
+            stbi_write_png("debug_mfcc.png", width, height, 3, imageData, width * 3);
+        }
         std::cout << "done" << std::endl;
     }
     
