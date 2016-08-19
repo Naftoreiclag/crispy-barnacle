@@ -156,11 +156,11 @@ int run(std::string inputAudioFilename) {
         writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
         
-        
         fftw_destroy_plan(fftwPlan);
         fftw_free(fftwOutput);
         fftw_free(fftwInput);
         
+        freeWaveform(inputAudio);
     }
     
     // Power estmates
@@ -184,8 +184,12 @@ int run(std::string inputAudioFilename) {
         }
         writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
-        
     }
+    
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        delete[] fftwCompleteOutput[i];
+    }
+    delete[] fftwCompleteOutput;
     
     // Mel filterbank
     double* filterbank = new double[numFilterbanks + 2];
@@ -251,6 +255,11 @@ int run(std::string inputAudioFilename) {
         writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
         std::cout << "done" << std::endl;
     }
+    for(int64_t i = 0; i < numWindows; ++ i) {
+        delete[] powerEstimates[i];
+    }
+    delete[] powerEstimates;
+    delete[] filterbank;
     
     // MFCC (Discrete cosine transform and tossing out high-frequency data)
     double** mfccs = new double*[numWindows];
@@ -279,25 +288,11 @@ int run(std::string inputAudioFilename) {
         std::cout << "done" << std::endl;
     }
     
-    std::cout << "Cleaning up... ";
-    
     for(int64_t i = 0; i < numWindows; ++ i) {
-        delete[] fftwCompleteOutput[i];
-        delete[] powerEstimates[i];
-        delete[] filterbankEnergies[i];
-        delete[] loggedFilterbankEnergies[i];
         delete[] mfccs[i];
     }
-    delete[] fftwCompleteOutput;
-    delete[] powerEstimates;
-    delete[] filterbankEnergies;
-    delete[] loggedFilterbankEnergies;
     delete[] mfccs;
     
-    delete[] filterbank;
-    
-    freeWaveform(inputAudio);
-    std::cout << "done" << std::endl;
     
     return 0;
 }
