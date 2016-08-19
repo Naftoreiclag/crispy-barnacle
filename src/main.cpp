@@ -26,7 +26,6 @@
 #include "DebugOutput.hpp"
 #include "ComplexNumber.hpp"
 
-
 double melScale(double hertz) {
     return 1127 * std::log(hertz / 700 + 1);
 }
@@ -35,22 +34,36 @@ double invMelScale(double mels) {
     return 700 * (std::exp(mels / 1127) - 1);
 }
 
-int run(std::string inputAudioFilename) {
-    
-    std::cout << "Filename is " << inputAudioFilename << std::endl;
-    
-    Waveform inputAudio;
-    int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
-    
-    if(errorCode) {
-        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
-        return -1;
+struct MFCC {
+    MFCC(double** mfccs, int32_t windowCount, int32_t mfccCount)
+    : data(mfccs)
+    , numWindows(windowCount)
+    , numMfccs(mfccCount) {
+    }
+    ~MFCC() {
+        for(int64_t i = 0; i < numWindows; ++ i) {
+            delete[] data[i];
+        }
+        delete[] data;
     }
     
-    int32_t frameLengthMilliseconds = 25;
-    int32_t frameStepMilliseconds = 10;
+    int64_t numWindows;
+    int32_t numMfccs;
     
-    // Rounded toward zero
+    double** data;
+};
+
+MFCC* generateMFCC(
+    Waveform inputAudio, 
+    double frameLengthMilliseconds, 
+    double frameStepMilliseconds, 
+    double filterMinFreq, 
+    double filterMaxFreq, 
+    int32_t numFilterbanks, 
+    int32_t numMfccs,
+    bool debugOutput = false) {
+    
+    // (Rounded toward zero)
     int32_t windowLength = (frameLengthMilliseconds * inputAudio.mSampleRate) / 1000;
     int32_t spectrumLength = windowLength / 2;
     int32_t windowStep = (frameStepMilliseconds * inputAudio.mSampleRate) / 1000;
@@ -59,13 +72,13 @@ int run(std::string inputAudioFilename) {
     std::cout << "Window length: " << windowLength << " samples / " << frameLengthMilliseconds << "ms" << std::endl;
     if(windowLength < 0) {
         std::cerr << "Fatal error! Length cannot be negative!" << std::endl;
-        return -1;
+        return NULL;
     }
     
     std::cout << "Window step: " << windowStep << " samples / " << frameStepMilliseconds << "ms" << std::endl;
     if(windowStep < 1) {
         std::cerr << "Fatal error! Step must be greater than 0!" << std::endl;
-        return -1;
+        return NULL;
     }
     
     int64_t numWindows = 0;
@@ -75,22 +88,18 @@ int run(std::string inputAudioFilename) {
     }
     std::cout << "Window count: " << numWindows << std::endl;
     
-    int32_t numFilterbanks = 26;
     std::cout << "Filterbank energy count: " << numFilterbanks << std::endl;
-    int32_t numMfccs = 12;
     std::cout << "Mel frequency count:" << numMfccs << std::endl;
     if(numMfccs > numFilterbanks) {
         std::cerr << "Fatal error! Mel frequency count is greater than the number of filterbank energies!" << std::endl;
-        return -1;
+        return NULL;
     }
     
-    double filterMinFreq = 300;
-    double filterMaxFreq = 8000;
     std::cout << "Lower filterbank range: " << filterMinFreq << "hz" << std::endl;
     std::cout << "Upper filterbank range: " << filterMaxFreq << "hz" << std::endl;
     if(filterMinFreq > filterMaxFreq) {
         std::cerr << "Fatal error! Invalid range!" << std::endl;
-        return -1;
+        return NULL;
     }
     
     // The frequency represented by fftwCompleteOutput[i][n] in hertz is equal to:
@@ -158,8 +167,6 @@ int run(std::string inputAudioFilename) {
         fftw_destroy_plan(fftwPlan);
         fftw_free(fftwOutput);
         fftw_free(fftwInput);
-        
-        freeWaveform(inputAudio);
     }
     
     // Power estmates
@@ -305,11 +312,31 @@ int run(std::string inputAudioFilename) {
         delete[] loggedFilterbankEnergies[i];
     }
     delete[] loggedFilterbankEnergies;
-    for(int64_t i = 0; i < numWindows; ++ i) {
-        delete[] mfccs[i];
-    }
-    delete[] mfccs;
     
+    return new MFCC(mfccs, numWindows, numMfccs);
+}
+
+int run(std::string inputAudioFilename) {
+    
+    std::cout << "Filename is " << inputAudioFilename << std::endl;
+    
+    Waveform inputAudio;
+    int32_t errorCode = loadWaveform(inputAudioFilename, inputAudio);
+    
+    if(errorCode) {
+        std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
+        return -1;
+    }
+    
+    double frameLengthMilliseconds = 25;
+    double frameStepMilliseconds = 10;
+    double filterMinFreq = 300;
+    double filterMaxFreq = 8000;
+    int32_t numFilterbanks = 26;
+    int32_t numMfccs = 12;
+    
+    MFCC* foo = generateMFCC(inputAudio, frameLengthMilliseconds, frameStepMilliseconds, filterMinFreq, filterMaxFreq, numFilterbanks, numMfccs);
+    delete foo;
     
     return 0;
 }
