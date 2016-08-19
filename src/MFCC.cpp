@@ -17,10 +17,14 @@
 
 #include "MFCC.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <iostream>
 
 #include "fftw3.h"
+#ifndef NDEBUG
+#include "stb_image_write.h"
+#endif // !NDEBUG
 
 #include "ComplexNumber.hpp"
 #include "DebugOutput.hpp"
@@ -44,6 +48,68 @@ MFCC::~MFCC() {
         delete[] data[i];
     }
     delete[] data;
+}
+
+double similarityIndex(MFCC* a, int64_t aw, MFCC* b, int64_t bw) {
+    assert(a->numMfccs == b->numMfccs && "Different MFCC counts!");
+    
+    double sum = 0;
+    for(int32_t i = 1; i < a->numMfccs; ++ i) {
+        double distSq = (b->data[bw][i] - a->data[aw][i]);
+        distSq *= distSq;
+        
+        double weighted = distSq * std::pow(0.8, i - 1);
+        sum += weighted;
+    }
+    
+    return sqrt(sum);
+}
+
+void debugMostSimilarSamples(MFCC* templat, MFCC* palette) {
+    assert(palette->numMfccs > 0);
+    int32_t* closestMatches = new int32_t[templat->numWindows];
+    for(int64_t windowIndex = 0; windowIndex < templat->numWindows; ++ windowIndex) {
+        
+        double bestSim = similarityIndex(palette, 0, templat, windowIndex);
+        int32_t bestPaletteIndex = 0;
+        
+        for(int32_t i = 1; i < palette->numWindows; ++ i) {
+            double thisSim = similarityIndex(palette, i, templat, windowIndex);
+            if(thisSim < bestSim) {
+                bestSim = thisSim;
+                bestPaletteIndex = i;
+            }
+        }
+        
+        closestMatches[windowIndex] = bestPaletteIndex;
+    }
+    
+    {
+        int width = templat->numWindows;
+        int height = templat->numMfccs;
+        
+        if(width > 2048) width = 2048;
+        char imageData[width * height * 3];
+        
+        for(int pixelY = 0; pixelY < height; ++ pixelY) {
+            for(int pixelX = 0; pixelX < width; ++ pixelX) {
+                
+                int frame = pixelX;
+                int spectrum = (height - pixelY) - 1;
+                
+                {
+                    double power = normalized(palette->data[closestMatches[frame]][spectrum], -4, 18);
+                    
+                    RGB heat = colorrampSevenHeat(power);
+                    
+                    imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                    imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                    imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+                }
+            }
+        }
+        stbi_write_png("closest_matches.png", width, height, 3, imageData, width * 3);
+    }
 }
 
 MFCC* generateMFCC(

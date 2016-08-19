@@ -22,7 +22,7 @@
 #include "WaveformIO.hpp"
 #include "MFCC.hpp"
 
-int run(std::string paletteAudioFilename, std::string templateAudioFilename) {
+int run(std::string paletteAudioFilename, std::string templatAudioFilename) {
     
     // PARAMETERS
     // should be kept globally constant
@@ -39,7 +39,7 @@ int run(std::string paletteAudioFilename, std::string templateAudioFilename) {
     // ECHO
     
     std::cout << "Palette filename is " << paletteAudioFilename << std::endl;
-    std::cout << "Template filename is " << templateAudioFilename << std::endl;
+    std::cout << "Template filename is " << templatAudioFilename << std::endl;
     std::cout << std::endl;
     
     // READ WAVEFORM
@@ -56,8 +56,8 @@ int run(std::string paletteAudioFilename, std::string templateAudioFilename) {
     std::cout << std::endl;
     
     std::cout << "Loading template waveform into memory... " << std::endl;
-    Waveform templateAudio;
-    errorCode = loadWaveform(templateAudioFilename, templateAudio);
+    Waveform templatAudio;
+    errorCode = loadWaveform(templatAudioFilename, templatAudio);
     if(errorCode) {
         std::cerr << "Fatal error! Failed to load waveform!" << std::endl;
         return -1;
@@ -78,20 +78,23 @@ int run(std::string paletteAudioFilename, std::string templateAudioFilename) {
     std::cout << std::endl;
     
     std::cout << "Generating template MFCC... " << std::endl;
-    MFCC* templateMFCCs = generateMFCC(templateAudio, params, true, "template");
-    if(!templateMFCCs) {
-        std::cerr << "Fatal error! Failed to generate MFCCs for template data!" << std::endl;
+    MFCC* templatMFCCs = generateMFCC(templatAudio, params, true, "template");
+    if(!templatMFCCs) {
+        std::cerr << "Fatal error! Failed to generate MFCCs for templat data!" << std::endl;
         return -1;
     }
-    std::cout << "Done generating template MFCC" << std::endl;
+    std::cout << "Done generating templat MFCC" << std::endl;
     std::cout << std::endl;
     
     // CLEANUP
     
     std::cout << "Cleaning up... ";
     freeWaveform(paletteAudio);
-    freeWaveform(templateAudio);
+    freeWaveform(templatAudio);
     std::cout << "\tdone" << std::endl;
+    
+    // DEBUG
+    debugMostSimilarSamples(templatMFCCs, paletteMFCCs);
     
     return 0;
 }

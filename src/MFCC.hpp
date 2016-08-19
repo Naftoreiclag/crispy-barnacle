@@ -47,6 +47,14 @@ struct MFCC {
     MFCCParams params;
 };
 
+double similarityIndex(MFCC* a, int64_t aw, MFCC* b, int64_t bw);
+
+#ifdef NDEBUG
+#define debugMostSimilarSamples(...)
+#else
+void debugMostSimilarSamples(MFCC* templat, MFCC* palette);
+#endif
+
 MFCC* generateMFCC(
     Waveform inputAudio, 
     const MFCCParams params,
