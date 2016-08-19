@@ -69,6 +69,7 @@ int run(std::string inputAudioFilename) {
     }
     
     int64_t numWindows = 0;
+    // TODO: use constant time calculation
     for(int64_t windowIndex = 0; (windowIndex * windowStep) < inputAudio.mNumSamples; ++ windowIndex) {
         numWindows ++;
     }
@@ -285,15 +286,17 @@ int run(std::string inputAudioFilename) {
                 
                 double total = 0;
                 for(int32_t filterbankIndex = 0; filterbankIndex < numFilterbanks; ++ filterbankIndex) {
-                    total += loggedFilterbankEnergies[windowIndex][filterbankIndex] * std::cos((3.141592653589793 / numFilterbanks) * (filterbankIndex + 0.5) * mfccIndex);
+                    total += loggedFilterbankEnergies[windowIndex][filterbankIndex] * std::cos((3.141592653589793 / numFilterbanks) * (0.5 + filterbankIndex) * mfccIndex);
                 }
                 
                 // May or may not be needed here
+                // Makes the transformation orthoganal
                 if(mfccIndex == 0) total *= std::sqrt(0.5);
                 total *= std::sqrt(2.0 / numFilterbanks);
                 
                 mfccs[windowIndex][mfccIndex] = total;
             }
+            
         }
         writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
         std::cout << "done" << std::endl;
