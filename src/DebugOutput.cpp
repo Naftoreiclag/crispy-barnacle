@@ -17,6 +17,8 @@
 
 #include "DebugOutput.hpp"
 
+#include "stb_image_write.h"
+
 double normalized(double value, double min, double max) {
     return (value - min) / (max - min);
 }
@@ -78,4 +80,69 @@ RGB colorrampSevenHeat(float normalizedIntensity) {
 RGB interp(RGB a, RGB b, float aWeight) {
     float bWeight = 1 - aWeight;
     return RGB(a.r * aWeight + b.r * bWeight, a.g * aWeight + b.g * bWeight, a.b * aWeight + b.b * bWeight);
+}
+
+int maxDebugWidth = 2048;
+
+void writeFFTWOutputDebug(char* filename, ComplexNumber** fftwCompleteOutput, int32_t numWindows, int32_t spectrumLength) {
+    int width = numWindows;
+    if(width > maxDebugWidth) width = maxDebugWidth;
+    int height = spectrumLength;
+    char imageData[width * height * 3];
+    
+    for(int pixelY = 0; pixelY < height; ++ pixelY) {
+        for(int pixelX = 0; pixelX < width; ++ pixelX) {
+            
+            int frame = pixelX;
+            int spectrum = (height - pixelY) - 1;
+            
+            double real = fftwCompleteOutput[frame][spectrum].real;
+            double imag = fftwCompleteOutput[frame][spectrum].imag;
+            
+            if(real < 0) real = -real;
+            if(imag < 0) imag = -imag;
+            
+            if(real > 1.0) {
+                real = 1.0;
+            } else if(real < 0.0) {
+                real = 0.0;
+            }
+            
+            if(imag > 1.0) {
+                imag = 1.0;
+            } else if(imag < 0.0) {
+                imag = 0.0;
+            }
+            
+            imageData[(pixelY * width + pixelX) * 3    ] = real * 255;
+            imageData[(pixelY * width + pixelX) * 3 + 1] = imag * 255;
+            imageData[(pixelY * width + pixelX) * 3 + 2] = 0;
+        }
+    }
+    
+    stbi_write_png(filename, width, height, 3, imageData, width * 3);
+}
+
+void writeGenericHeatOutput(char* filename, double** data, int width, int height, double minRange, double maxRange) {
+    if(width > maxDebugWidth) width = maxDebugWidth;
+    char imageData[width * height * 3];
+    
+    for(int pixelY = 0; pixelY < height; ++ pixelY) {
+        for(int pixelX = 0; pixelX < width; ++ pixelX) {
+            
+            int frame = pixelX;
+            int spectrum = (height - pixelY) - 1;
+            
+            {
+                double power = normalized(data[frame][spectrum], minRange, maxRange);
+                
+                RGB heat = colorrampSevenHeat(power);
+                
+                imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
+                imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
+                imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
+            }
+        }
+    }
+    stbi_write_png(filename, width, height, 3, imageData, width * 3);
 }

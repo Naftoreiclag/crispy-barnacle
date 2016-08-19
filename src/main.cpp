@@ -20,13 +20,14 @@
 #include <cmath>
 #include <stdint.h>
 
-#include "fftw3.h"
-
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "fftw3.h"
 
 #include "WaveformIO.hpp"
 #include "DebugOutput.hpp"
+#include "ComplexNumber.hpp"
+
 
 double melScale(double hertz) {
     return 1127 * std::log(hertz / 700 + 1);
@@ -35,11 +36,6 @@ double melScale(double hertz) {
 double invMelScale(double mels) {
     return 700 * (std::exp(mels / 1127) - 1);
 }
-
-struct ComplexNumber {
-    double real;
-    double imag;
-};
 
 int run(std::string inputAudioFilename) {
     
@@ -106,7 +102,7 @@ int run(std::string inputAudioFilename) {
     // FFTW transform
     ComplexNumber** fftwCompleteOutput = new ComplexNumber*[numWindows];
     for(int64_t i = 0; i < numWindows; ++ i) {
-        fftwCompleteOutput[i] = new ComplexNumber[windowLength];
+        fftwCompleteOutput[i] = new ComplexNumber[spectrumLength];
     }
     {
         fftw_complex* fftwInput = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * windowLength);
@@ -151,18 +147,20 @@ int run(std::string inputAudioFilename) {
             
             fftw_execute(fftwPlan);
             
-            for(int64_t windowSample = 0; windowSample < windowLength; ++ windowSample) {
+            for(int64_t windowSample = 0; windowSample < spectrumLength; ++ windowSample) {
                 
                 fftwCompleteOutput[windowIndex][windowSample].real = fftwOutput[windowSample][0];
                 fftwCompleteOutput[windowIndex][windowSample].imag = fftwOutput[windowSample][1];
             }
         }
+        writeFFTWOutputDebug("debug_fftw.png", fftwCompleteOutput, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
         
         
         fftw_destroy_plan(fftwPlan);
         fftw_free(fftwOutput);
         fftw_free(fftwInput);
+        
     }
     
     // Power estmates
@@ -184,7 +182,9 @@ int run(std::string inputAudioFilename) {
                 powerEstimates[windowIndex][windowSample] = absValSq / denom;
             }
         }
+        writeGenericHeatOutput("debug_power.png", powerEstimates, numWindows, spectrumLength);
         std::cout << "done" << std::endl;
+        
     }
     
     // Mel filterbank
@@ -247,7 +247,8 @@ int run(std::string inputAudioFilename) {
                 loggedFilterbankEnergies[windowIndex][filterbankIndex] = std::log(totalEnergy); // Natural log, please
             }
         }
-        
+        writeGenericHeatOutput("debug_energies.png", filterbankEnergies, numWindows, numFilterbanks);
+        writeGenericHeatOutput("debug_energies_log.png", loggedFilterbankEnergies, numWindows, numFilterbanks, -10, 1);
         std::cout << "done" << std::endl;
     }
     
@@ -274,185 +275,7 @@ int run(std::string inputAudioFilename) {
                 mfccs[windowIndex][mfccIndex] = total;
             }
         }
-    
-        std::cout << "done" << std::endl;
-    }
-    
-    
-    // Debug output power estimates as image
-    {
-        int maxDebugWidth = 2048;
-        std::cout << "Writing debug images... ";
-        // Power estimate
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = spectrumLength;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                    
-                    {
-                        double power = powerEstimates[frame][spectrum];
-                        
-                        RGB heat = colorrampSevenHeat(power);
-                        
-                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
-                    }
-                }
-            }
-            stbi_write_png("debug_power.png", width, height, 3, imageData, width * 3);
-        }
-        // Power estimate sqrt
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = spectrumLength;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                    
-                    {
-                        double power = powerEstimates[frame][spectrum];
-                        power = std::sqrt(power);
-                        
-                        RGB heat = colorrampSevenHeat(power);
-                        
-                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
-                    }
-                }
-            }
-            stbi_write_png("debug_power_sqrt.png", width, height, 3, imageData, width * 3);
-        }
-        // FFTW output
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = spectrumLength;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                    
-                    double real = fftwCompleteOutput[frame][spectrum].real;
-                    double imag = fftwCompleteOutput[frame][spectrum].imag;
-                    
-                    if(real < 0) real = -real;
-                    if(imag < 0) imag = -imag;
-                    
-                    if(real > 1.0) {
-                        real = 1.0;
-                    } else if(real < 0.0) {
-                        real = 0.0;
-                    }
-                    
-                    if(imag > 1.0) {
-                        imag = 1.0;
-                    } else if(imag < 0.0) {
-                        imag = 0.0;
-                    }
-                    
-                    imageData[(pixelY * width + pixelX) * 3    ] = real * 255;
-                    imageData[(pixelY * width + pixelX) * 3 + 1] = imag * 255;
-                    imageData[(pixelY * width + pixelX) * 3 + 2] = 0;
-                }
-            }
-            
-            stbi_write_png("debug_fftw_output.png", width, height, 3, imageData, width * 3);
-        }
-        // Mel filterbank energies
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = numFilterbanks;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                    
-                    {
-                        double power = filterbankEnergies[frame][spectrum];
-                        
-                        RGB heat = colorrampSevenHeat(power);
-                        
-                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
-                    }
-                }
-            }
-            stbi_write_png("debug_filterbank_energies.png", width, height, 3, imageData, width * 3);
-        }
-        // Mel filterbank energies (log)
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = numFilterbanks;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                    
-                    {
-                        double power = loggedFilterbankEnergies[frame][spectrum];
-                        power = normalized(power, -10, 1);
-                        
-                        RGB heat = colorrampSevenHeat(power);
-                        
-                        imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
-                        imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
-                    }
-                }
-            }
-            stbi_write_png("debug_filterbank_energies_log.png", width, height, 3, imageData, width * 3);
-        }
-        // MFCC
-        {
-            int width = numWindows;
-            if(width > maxDebugWidth) width = maxDebugWidth;
-            int height = numMfccs;
-            char imageData[width * height * 3];
-            
-            for(int pixelY = 0; pixelY < height; ++ pixelY) {
-                for(int pixelX = 0; pixelX < width; ++ pixelX) {
-                    
-                    int frame = pixelX;
-                    int spectrum = (height - pixelY) - 1;
-                
-                    double power = mfccs[frame][spectrum];
-                    power = normalized(power, -4, 18);
-                    
-                    RGB heat = colorrampSevenHeat(power);
-                    
-                    imageData[(pixelY * width + pixelX) * 3    ] = heat.RU8();
-                    imageData[(pixelY * width + pixelX) * 3 + 1] = heat.GU8();
-                    imageData[(pixelY * width + pixelX) * 3 + 2] = heat.BU8();
-                }
-            }
-            stbi_write_png("debug_mfcc.png", width, height, 3, imageData, width * 3);
-        }
+        writeGenericHeatOutput("debug_mfcc.png", mfccs, numWindows, numMfccs, -4, 18);
         std::cout << "done" << std::endl;
     }
     

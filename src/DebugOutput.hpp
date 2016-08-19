@@ -18,6 +18,10 @@
 #ifndef DEBUGOUTPUT_HPP
 #define DEBUGOUTPUT_HPP
 
+#include <stdint.h>
+
+#include "ComplexNumber.hpp"
+
 struct RGB {
     RGB(float r, float g, float b);
     
@@ -37,4 +41,6 @@ RGB interp(RGB a, RGB b, float amnt);
 double normalized(double value, double min, double max);
 double normalizedClamp(double value, double min, double max);
 
+void writeFFTWOutputDebug(char* filename, ComplexNumber** fftwCompleteOutput, int32_t numWindows, int32_t spectrumLength);
+void writeGenericHeatOutput(char* filename, double** data, int width, int height, double minRange = 0, double maxRange = 1);
 #endif // DEBUGOUTPUT_HPP

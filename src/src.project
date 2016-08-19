@@ -34,6 +34,7 @@
     <File Name="WaveformIO.cpp"/>
     <File Name="DebugOutput.hpp"/>
     <File Name="DebugOutput.cpp"/>
+    <File Name="ComplexNumber.hpp"/>
   </VirtualDirectory>
   <Settings Type="Executable">
     <GlobalSettings>
