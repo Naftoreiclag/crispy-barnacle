@@ -35,6 +35,8 @@
     <File Name="DebugOutput.hpp"/>
     <File Name="DebugOutput.cpp"/>
     <File Name="ComplexNumber.hpp"/>
+    <File Name="MFCC.hpp"/>
+    <File Name="MFCC.cpp"/>
   </VirtualDirectory>
   <Settings Type="Executable">
     <GlobalSettings>
