@@ -17,7 +17,10 @@
 
 #include "DebugOutput.hpp"
 
+#ifndef NDEBUG
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#endif // !NDEBUG
 
 double normalized(double value, double min, double max) {
     return (value - min) / (max - min);
@@ -84,7 +87,8 @@ RGB interp(RGB a, RGB b, float aWeight) {
 
 int maxDebugWidth = 2048;
 
-void writeFFTWOutputDebug(char* filename, ComplexNumber** fftwCompleteOutput, int32_t numWindows, int32_t spectrumLength) {
+#ifndef NDEBUG
+void writeFFTWOutputDebug(std::string filename, ComplexNumber** fftwCompleteOutput, int32_t numWindows, int32_t spectrumLength) {
     int width = numWindows;
     if(width > maxDebugWidth) width = maxDebugWidth;
     int height = spectrumLength;
@@ -120,10 +124,9 @@ void writeFFTWOutputDebug(char* filename, ComplexNumber** fftwCompleteOutput, in
         }
     }
     
-    stbi_write_png(filename, width, height, 3, imageData, width * 3);
+    stbi_write_png(filename.c_str(), width, height, 3, imageData, width * 3);
 }
-
-void writeGenericHeatOutput(char* filename, double** data, int width, int height, double minRange, double maxRange) {
+void writeGenericHeatOutput(std::string filename, double** data, int width, int height, double minRange, double maxRange) {
     if(width > maxDebugWidth) width = maxDebugWidth;
     char imageData[width * height * 3];
     
@@ -144,5 +147,6 @@ void writeGenericHeatOutput(char* filename, double** data, int width, int height
             }
         }
     }
-    stbi_write_png(filename, width, height, 3, imageData, width * 3);
+    stbi_write_png(filename.c_str(), width, height, 3, imageData, width * 3);
 }
+#endif // !NDEBUG
